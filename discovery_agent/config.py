@@ -4,7 +4,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-DATABASE_PATH = os.getenv("DATABASE_PATH", "./discovery_agent.db")
+_APP_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE_PATH = os.getenv("DATABASE_PATH", os.path.join(_APP_DIR, "discovery_agent.db"))
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8501")
 
 CLAUDE_MODEL = "claude-sonnet-4-20250514"

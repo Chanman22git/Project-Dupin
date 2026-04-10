@@ -1,3 +1,10 @@
+import sys
+import os
+
+# Ensure the discovery_agent directory is on the Python path
+# so relative imports work regardless of where Streamlit runs from
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import streamlit as st
 from database.db import init_db
 
