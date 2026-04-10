@@ -88,3 +88,31 @@ Respond with structured JSON matching the insight/discrepancy/journey schemas.""
 
 # Need to import json for the f-string in build_user_agent_prompt
 import json
+
+
+CONTEXT_EXTRACTION_PROMPT = """Extract structured product context from this PM conversation.
+Return a JSON object with these keys:
+- name: product/context name if clearly stated (string, or null if not discussed)
+- description: product description synthesized from the conversation (string)
+- documentation: any technical docs, APIs, specs, or reference material mentioned (string)
+- current_state: what the product currently does, its current status (string)
+
+Only populate fields where the conversation provides clear information.
+Use empty string for fields not discussed. Synthesize naturally — don't just copy-paste."""
+
+
+SESSION_EXTRACTION_PROMPT = """Extract structured discovery session configuration from this PM conversation.
+Return a JSON object with these keys:
+- name: session name if clearly stated (string, or null if not discussed)
+- objective: what the PM wants to learn from this research (string)
+- scope: specific features, scenarios, or use cases to explore (string)
+- target_personas: list of persona objects, each with "name" and "description" keys (list, or null)
+- agent_behavior: object with any of these keys if discussed:
+  - research_depth: "deep_researcher" | "balanced" | "listener" (string, or null)
+  - clarification_mode: "realtime" | "balanced" | "flagged" (string, or null)
+  - max_questions: integer or null
+  - focus_areas: list of strings
+  - avoid_areas: list of strings
+
+Only populate fields where the conversation provides clear direction.
+Use null for fields not discussed. Do not invent values."""
