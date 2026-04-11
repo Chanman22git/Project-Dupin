@@ -14,11 +14,7 @@ def render_chat(
     initial_assistant_message: str = None,
     enable_file_upload: bool = True,
 ):
-    """Render a chat interface with inline file attachment.
-
-    Files are parsed and included as context in the user's next message.
-    The file content is not stored — only used as conversation context.
-    """
+    """Render a chat interface with inline file attachment."""
     # Initialize with greeting if history is empty
     if session_key in st.session_state and not st.session_state[session_key]:
         if initial_assistant_message:
@@ -31,34 +27,66 @@ def render_chat(
     # Render existing messages
     for msg in messages:
         with st.chat_message(msg["role"]):
-            # Show a cleaner version for file messages
             content = msg.get("content", "")
-            if content.startswith("[Attached:"):
-                # Show just the attachment label, not the full content
-                lines = content.split("\n", 3)
-                st.markdown(lines[0])
-                if len(lines) > 2:
-                    with st.expander("View attached content", expanded=False):
-                        st.markdown(lines[-1][:500] + ("..." if len(lines[-1]) > 500 else ""))
+            if "[Attached:" in content and "--- File Content:" in content:
+                # Show clean version for file messages
+                parts = content.split("--- File Content:", 1)
+                header = parts[0].strip()
+                st.markdown(header)
             else:
                 st.markdown(content)
 
-    # ── Input area: file attach + text input side by side ──
+    # ── Embedded attach + input area ──
     if enable_file_upload:
-        # Pending file in session state
         pending_file_key = f"pending_file_{session_key}"
         upload_key = f"file_upload_{session_key}"
 
-        # File uploader — small, inline
+        # Pending file indicator (shows above input like a chat attachment chip)
+        pending = st.session_state.get(pending_file_key)
+        if pending:
+            col_chip, col_remove = st.columns([5, 1])
+            with col_chip:
+                st.markdown(
+                    f'<div style="background:#E8E3D8;border:1px solid #D0CAC0;border-radius:8px;'
+                    f'padding:0.35rem 0.75rem;font-size:0.8rem;color:#3D3D35;display:inline-flex;'
+                    f'align-items:center;gap:0.4rem;margin-bottom:0.25rem;">'
+                    f'📎 <strong>{pending["name"]}</strong>'
+                    f'<span style="color:#8C8878;margin-left:0.25rem;">{len(pending["content"]):,} chars</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            with col_remove:
+                if st.button("✕", key=f"remove_file_{session_key}", help="Remove attachment"):
+                    del st.session_state[pending_file_key]
+                    st.rerun()
+
+        # Compact file uploader styled as a small attach button
+        # Hide the default label and make it minimal
+        st.markdown(
+            """<style>
+            div[data-testid="stFileUploader"] > section > button {
+                font-size: 0.8rem !important;
+                padding: 0.2rem 0.6rem !important;
+                border-radius: 6px !important;
+            }
+            div[data-testid="stFileUploader"] > label { display: none !important; }
+            div[data-testid="stFileUploader"] { margin-bottom: -0.5rem !important; }
+            div[data-testid="stFileUploader"] > section {
+                padding: 0 !important;
+                border: none !important;
+            }
+            </style>""",
+            unsafe_allow_html=True,
+        )
+
         uploaded_file = st.file_uploader(
-            "📎 Attach file",
+            "📎",
             type=["md", "txt", "pdf", "docx", "doc", "csv", "json", "yaml", "yml"],
             key=upload_key,
             label_visibility="collapsed",
-            help="Attach a file to include as context in your next message",
         )
 
-        # Parse file when uploaded
+        # Parse when new file uploaded
         if uploaded_file is not None:
             file_id = f"{uploaded_file.name}_{uploaded_file.size}"
             if st.session_state.get(f"parsed_id_{session_key}") != file_id:
@@ -72,46 +100,34 @@ def render_chat(
                         "content": file_content,
                     }
                     st.session_state[f"parsed_id_{session_key}"] = file_id
+                    st.rerun()
                 elif file_content.startswith("["):
                     st.warning(file_content)
-
-        # Show pending file indicator
-        pending = st.session_state.get(pending_file_key)
-        if pending:
-            st.markdown(
-                f'<div style="background:#E8E3D8;border-radius:6px;padding:0.4rem 0.75rem;'
-                f'margin-bottom:0.5rem;font-size:0.8rem;color:#3D3D35;display:inline-flex;'
-                f'align-items:center;gap:0.4rem;">'
-                f'📎 <strong>{pending["name"]}</strong> attached '
-                f'<span style="color:#8C8878;">({len(pending["content"]):,} chars)</span>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
+                    st.session_state[f"parsed_id_{session_key}"] = file_id
 
     # Chat input
     if user_input := st.chat_input(placeholder, key=f"chat_input_{session_key}"):
-        # Build the full message — text + any attached file
         pending = st.session_state.get(f"pending_file_{session_key}") if enable_file_upload else None
 
         if pending:
             full_content = (
-                f"[Attached: **{pending['name']}**]\n\n"
-                f"{user_input}\n\n"
+                f"[Attached: **{pending['name']}**] {user_input}\n\n"
                 f"--- File Content: {pending['name']} ---\n"
                 f"{pending['content']}\n"
                 f"--- End File ---"
             )
-            display_content = f"📎 **{pending['name']}** — {user_input}"
-            # Clear the pending file
+            # Clear pending
             del st.session_state[f"pending_file_{session_key}"]
             if f"parsed_id_{session_key}" in st.session_state:
                 del st.session_state[f"parsed_id_{session_key}"]
         else:
             full_content = user_input
-            display_content = user_input
 
         with st.chat_message("user"):
-            st.markdown(display_content)
+            if pending:
+                st.markdown(f"📎 **{pending['name']}** — {user_input}")
+            else:
+                st.markdown(user_input)
 
         messages.append({"role": "user", "content": full_content, "timestamp": _now()})
         st.session_state[session_key] = messages
