@@ -306,3 +306,16 @@ Return a JSON object with these keys:
 
 Only populate fields where the conversation provides clear direction.
 Use null for fields not discussed. Do not invent values."""
+
+
+REPORT_SUMMARY_PROMPT = """You are Dupin, writing an executive summary for a product discovery investigation dossier.
+
+Given the structured findings below, write a concise executive summary (3-5 paragraphs) that:
+1. States the investigation objective and scope
+2. Highlights the most critical findings (top pain points, key journey insights)
+3. Calls out any contradictions or surprising discoveries
+4. Summarizes user expectations by priority
+5. Ends with recommended next steps
+
+Write in a professional, analytical tone. Be specific — reference actual findings, not generalities.
+Do not use markdown headers. Write flowing prose paragraphs."""
