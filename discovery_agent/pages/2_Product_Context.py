@@ -63,60 +63,51 @@ tab_overview, tab_investigations, tab_leads = st.tabs(
 # Case Brief Tab
 # ═══════════════════════════════════════════════
 with tab_overview:
-    render_tab_guide("Define your product's description, documentation, and current state. Chat with Dupin or edit directly.")
-    col_display, col_chat = st.columns([1, 1], gap="large")
+    # Check if case brief has any content
+    fields = ["description", "documentation", "current_state"]
+    filled = sum(1 for f in fields if ctx.get(f))
+    has_brief = filled > 0
 
-    with col_display:
-        fields = ["description", "documentation", "current_state"]
-        filled = sum(1 for f in fields if ctx.get(f))
-        pct = int((filled / len(fields)) * 100)
+    # Chat state init (needed regardless of layout)
+    chat_key = f"pm_context_chat_{ctx_id}"
+    if chat_key not in st.session_state:
+        saved = ctx.get("context_conversation_history", [])
+        if isinstance(saved, str):
+            saved = json.loads(saved) if saved else []
+        st.session_state[chat_key] = saved
 
-        col_hdr, col_ring = st.columns([3, 1])
-        with col_hdr:
-            render_section_header("document", "Case Brief")
-        with col_ring:
-            render_progress_ring(pct, "Complete")
+    def context_agent_callback(messages):
+        try:
+            raw_response = get_context_agent_response(messages, ctx)
+        except (AgentError, Exception) as e:
+            return f"I'm having a brief connection issue. Please try again. ({type(e).__name__})"
+        should_save, clean_response = detect_save(raw_response, SAVE_MARKER)
 
-        render_info_field("Subject", ctx.get("description"), "Chat with Dupin to build your case brief")
-        render_info_field("Evidence & Documentation", ctx.get("documentation"), "Paste docs, APIs, or specs")
-        render_info_field("Current State of Affairs", ctx.get("current_state"), "What does the product do today?")
+        if should_save:
+            with st.spinner("Filing case brief..."):
+                full_messages = messages + [
+                    {"role": "assistant", "content": clean_response}
+                ]
+                extracted = extract_product_context(full_messages)
+                update_kwargs = {}
+                for field in ["name", "description", "documentation", "current_state"]:
+                    val = extracted.get(field)
+                    if val and val != "null":
+                        update_kwargs[field] = val
+                update_kwargs["context_conversation_history"] = (
+                    st.session_state[chat_key]
+                    + [{"role": "assistant", "content": clean_response}]
+                )
+                ProductContextDB.update(ctx_id, **update_kwargs)
 
-    with col_chat:
-        render_section_header("chat", "Dupin Assistant")
+        return clean_response
 
-        chat_key = f"pm_context_chat_{ctx_id}"
-        if chat_key not in st.session_state:
-            saved = ctx.get("context_conversation_history", [])
-            if isinstance(saved, str):
-                saved = json.loads(saved) if saved else []
-            st.session_state[chat_key] = saved
-
-        def context_agent_callback(messages):
-            try:
-                raw_response = get_context_agent_response(messages, ctx)
-            except (AgentError, Exception) as e:
-                return f"I'm having a brief connection issue. Please try again. ({type(e).__name__})"
-            should_save, clean_response = detect_save(raw_response, SAVE_MARKER)
-
-            if should_save:
-                with st.spinner("Filing case brief..."):
-                    full_messages = messages + [
-                        {"role": "assistant", "content": clean_response}
-                    ]
-                    extracted = extract_product_context(full_messages)
-                    update_kwargs = {}
-                    for field in ["name", "description", "documentation", "current_state"]:
-                        val = extracted.get(field)
-                        if val and val != "null":
-                            update_kwargs[field] = val
-                    update_kwargs["context_conversation_history"] = (
-                        st.session_state[chat_key]
-                        + [{"role": "assistant", "content": clean_response}]
-                    )
-                    ProductContextDB.update(ctx_id, **update_kwargs)
-
-            return clean_response
-
+    if not has_brief:
+        # ── Chat-only mode: no brief yet ──
+        render_tab_guide(
+            "Tell Dupin about your product — what it does, who uses it, any docs you have. "
+            "When you're ready, say 'save this' and Dupin will file the case brief."
+        )
         render_chat(
             session_key=chat_key,
             agent_callback=context_agent_callback,
@@ -125,9 +116,40 @@ with tab_overview:
                 "Welcome, detective. I'm Dupin, your discovery assistant. "
                 "Let's build the case brief \u2014 tell me about the product "
                 "you're investigating. What is it, who uses it, and what does "
-                "it currently do? You can also paste any documentation or specs."
+                "it currently do? You can also paste any documentation or specs.\n\n"
+                "When you're happy with what we've covered, just say **\"save this\"** "
+                "and I'll file the case brief."
             ),
         )
+    else:
+        # ── Brief exists: show structured view + chat for updates ──
+        render_tab_guide("Your case brief is filed. Chat with Dupin to update it, or review the details below.")
+
+        # Brief display
+        col_hdr, col_ring = st.columns([3, 1])
+        with col_hdr:
+            render_section_header("document", "Case Brief")
+        with col_ring:
+            pct = int((filled / len(fields)) * 100)
+            render_progress_ring(pct, "Complete")
+
+        render_info_field("Subject", ctx.get("description"))
+        render_info_field("Evidence & Documentation", ctx.get("documentation"))
+        render_info_field("Current State of Affairs", ctx.get("current_state"))
+
+        st.divider()
+
+        # Collapsible chat for updates
+        with st.expander("Chat with Dupin to update the brief", expanded=False):
+            render_chat(
+                session_key=chat_key,
+                agent_callback=context_agent_callback,
+                placeholder="Ask Dupin to update the brief, or say 'save this'...",
+                initial_assistant_message=(
+                    "The case brief is filed. Need to update anything? "
+                    "Tell me what's changed and say **\"save this\"** when ready."
+                ),
+            )
 
 # ═══════════════════════════════════════════════
 # Investigations Tab
