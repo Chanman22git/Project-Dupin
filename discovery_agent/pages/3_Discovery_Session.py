@@ -8,6 +8,7 @@ from database.models import (
     UserSessionLinkDB,
     ConversationDB,
 )
+from agents.base import AgentError
 from agents.pm_agent import (
     get_session_agent_response,
     detect_save,
@@ -194,7 +195,6 @@ with tab_config:
             st.session_state[chat_key] = saved
 
         def session_agent_callback(messages):
-            from agents.base import AgentError
             try:
                 raw = get_session_agent_response(messages, session, product_ctx or {})
             except (AgentError, Exception) as e:

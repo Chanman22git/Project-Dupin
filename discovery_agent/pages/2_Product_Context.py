@@ -2,6 +2,7 @@ from __future__ import annotations
 import json
 import streamlit as st
 from database.models import ProductContextDB, DiscoverySessionDB, ContextImprovementDB
+from agents.base import AgentError
 from agents.pm_agent import (
     get_context_agent_response,
     detect_save,
@@ -91,7 +92,6 @@ with tab_overview:
             st.session_state[chat_key] = saved
 
         def context_agent_callback(messages):
-            from agents.base import AgentError
             try:
                 raw_response = get_context_agent_response(messages, ctx)
             except (AgentError, Exception) as e:

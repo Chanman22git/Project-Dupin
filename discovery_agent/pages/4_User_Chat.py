@@ -8,6 +8,7 @@ from database.models import (
     DiscoverySessionDB,
     ProductContextDB,
 )
+from agents.base import AgentError
 from agents.user_agent import (
     get_user_agent_response,
     extract_summary_from_response,
@@ -200,8 +201,6 @@ else:
 
     # Agent callback
     def user_agent_callback(messages):
-        from agents.base import AgentError
-
         conv_id = st.session_state[conv_id_key]
         current_state = st.session_state.get(state_key, "GREETING")
 
