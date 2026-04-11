@@ -9,4 +9,5 @@ from database.models import (
     UserJourneyDB,
     ExpectationDB,
     ContextImprovementDB,
+    ArtifactDB,
 )

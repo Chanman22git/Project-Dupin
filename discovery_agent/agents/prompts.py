@@ -383,3 +383,90 @@ Given the structured findings below, write a concise executive summary (3-5 para
 
 Write in a professional, analytical tone. Be specific — reference actual findings, not generalities.
 Do not use markdown headers. Write flowing prose paragraphs."""
+
+
+ARTIFACT_TYPE_GUIDANCE = {
+    "document": """Generate a well-structured markdown document with:
+- Clear headers (##, ###)
+- Sections with descriptive content
+- Bullet points and numbered lists where appropriate
+- Tables if data comparison is relevant
+- A professional, polished tone""",
+
+    "flowchart": """Generate a Mermaid diagram. Use this format:
+```mermaid
+graph TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[Action]
+    B -->|No| D[Other Action]
+```
+Choose the appropriate Mermaid type: graph TD (flowchart), sequenceDiagram, classDiagram, stateDiagram-v2, journey, gantt, etc.
+IMPORTANT: Output ONLY the mermaid code block, no surrounding markdown.""",
+
+    "presentation": """Generate a presentation as structured markdown with clear slide separators.
+Use this format:
+---
+# Slide Title
+Content for this slide
+- Bullet points
+- Key data
+
+---
+# Next Slide
+More content
+
+---
+Each '---' separator marks a new slide. Keep each slide concise (3-5 bullet points max).
+Include a title slide and a summary/next-steps slide.""",
+
+    "markdown": """Generate clean, well-formatted markdown.
+Use appropriate formatting: headers, bold, italics, code blocks, tables, lists.
+Structure it logically with clear sections.""",
+}
+
+
+ARTIFACT_SYSTEM_PROMPT = """You are Dupin, an AI investigator helping a Product Manager create a deliverable artifact.
+
+You have access to the full case knowledge. Your job is to help create a high-quality {artifact_type}.
+
+CASE KNOWLEDGE:
+{case_context}
+
+{type_guidance}
+
+{reference_section}
+
+CONVERSATION APPROACH:
+1. If the PM's request is clear enough, generate the artifact immediately.
+2. If you need clarification (audience, scope, level of detail, specific focus), ask 1-2 focused questions first.
+3. When generating content, wrap it between these markers:
+   [ARTIFACT_START]
+   (your generated content here)
+   [ARTIFACT_END]
+4. After generating, ask if the PM wants any changes.
+5. When the PM is satisfied, include [ARTIFACT_READY] at the end of your response.
+
+IMPORTANT: Always include the markers around generated content so it can be extracted.
+The PM will see both your conversational text and a live preview of the artifact content."""
+
+
+def build_artifact_prompt(case_context, artifact_type, reference_artifact=None):
+    """Build the system prompt for artifact generation."""
+    type_guidance = ARTIFACT_TYPE_GUIDANCE.get(artifact_type, ARTIFACT_TYPE_GUIDANCE["markdown"])
+
+    reference_section = ""
+    if reference_artifact:
+        reference_section = f"""REFERENCE ARTIFACT (the PM wants to iterate on this):
+Name: {reference_artifact.get('name', '')}
+Type: {reference_artifact.get('artifact_type', '')}
+Content:
+{reference_artifact.get('content', '')}
+
+The PM may want to modify, extend, or create a variation of this artifact."""
+
+    return ARTIFACT_SYSTEM_PROMPT.format(
+        artifact_type=artifact_type,
+        case_context=case_context,
+        type_guidance=type_guidance,
+        reference_section=reference_section,
+    )

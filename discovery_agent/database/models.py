@@ -654,3 +654,76 @@ class ContextImprovementDB:
         conn.commit()
         conn.close()
         return ContextImprovementDB.get(imp_id)
+
+
+# ──────────────────────────────────────────────
+# Artifacts
+# ──────────────────────────────────────────────
+
+class ArtifactDB:
+    @staticmethod
+    def create(product_context_id: str, name: str, artifact_type: str = "document",
+               content: str = "", parent_artifact_id: str = None,
+               version: int = 1) -> dict:
+        conn = get_connection()
+        artifact_id = _new_id()
+        now = _now()
+        conn.execute(
+            """INSERT INTO artifacts
+               (id, product_context_id, name, artifact_type, content,
+                parent_artifact_id, version, status, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)""",
+            (artifact_id, product_context_id, name, artifact_type, content,
+             parent_artifact_id, version, now, now),
+        )
+        conn.commit()
+        conn.close()
+        return ArtifactDB.get(artifact_id)
+
+    @staticmethod
+    def get(artifact_id: str) -> dict | None:
+        conn = get_connection()
+        row = conn.execute("SELECT * FROM artifacts WHERE id = ?", (artifact_id,)).fetchone()
+        conn.close()
+        return _parse_row(row)
+
+    @staticmethod
+    def list_by_context(product_context_id: str) -> list[dict]:
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT * FROM artifacts WHERE product_context_id = ? ORDER BY updated_at DESC",
+            (product_context_id,),
+        ).fetchall()
+        conn.close()
+        return _parse_rows(rows)
+
+    @staticmethod
+    def update(artifact_id: str, **kwargs) -> dict | None:
+        conn = get_connection()
+        allowed = {"name", "artifact_type", "content", "status", "conversation_history"}
+        updates = []
+        values = []
+        for k, v in kwargs.items():
+            if k in allowed:
+                updates.append(f"{k} = ?")
+                values.append(json.dumps(v) if isinstance(v, (list, dict)) else v)
+        if not updates:
+            conn.close()
+            return ArtifactDB.get(artifact_id)
+        updates.append("updated_at = ?")
+        values.append(_now())
+        values.append(artifact_id)
+        conn.execute(
+            f"UPDATE artifacts SET {', '.join(updates)} WHERE id = ?", values
+        )
+        conn.commit()
+        conn.close()
+        return ArtifactDB.get(artifact_id)
+
+    @staticmethod
+    def delete(artifact_id: str) -> bool:
+        conn = get_connection()
+        cursor = conn.execute("DELETE FROM artifacts WHERE id = ?", (artifact_id,))
+        conn.commit()
+        conn.close()
+        return cursor.rowcount > 0

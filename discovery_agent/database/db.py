@@ -165,6 +165,23 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_journeys_session ON user_journeys(discovery_session_id);
         CREATE INDEX IF NOT EXISTS idx_expectations_session ON expectations(discovery_session_id);
         CREATE INDEX IF NOT EXISTS idx_improvements_context ON context_improvements(product_context_id);
+
+        CREATE TABLE IF NOT EXISTS artifacts (
+            id TEXT PRIMARY KEY,
+            product_context_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            artifact_type TEXT NOT NULL CHECK(artifact_type IN ('document', 'flowchart', 'presentation', 'markdown')),
+            content TEXT DEFAULT '',
+            parent_artifact_id TEXT,
+            version INTEGER DEFAULT 1,
+            conversation_history TEXT DEFAULT '[]',
+            status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'final')),
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (product_context_id) REFERENCES product_contexts(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_artifacts_context ON artifacts(product_context_id);
     """)
 
     # Migrations for existing databases

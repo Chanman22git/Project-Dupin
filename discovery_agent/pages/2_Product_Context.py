@@ -1,7 +1,7 @@
 from __future__ import annotations
 import json
 import streamlit as st
-from database.models import ProductContextDB, DiscoverySessionDB, ContextImprovementDB
+from database.models import ProductContextDB, DiscoverySessionDB, ContextImprovementDB, ArtifactDB
 from agents.base import AgentError
 from agents.pm_agent import (
     get_context_agent_response,
@@ -9,6 +9,7 @@ from agents.pm_agent import (
     extract_product_context,
     SAVE_MARKER,
 )
+from agents.artifact_agent import get_artifact_response, extract_artifact_content, ARTIFACT_READY
 from components.chat_ui import render_chat
 from components.styles import inject_custom_css
 from components.graphics import (
@@ -20,6 +21,8 @@ from components.graphics import (
     icon,
 )
 from components.guidance import render_page_guide, render_tab_guide
+from components.artifact_viewer import render_artifact_card, render_artifact_preview
+from utils.export import export_artifact_to_docx, export_artifact_to_pptx
 
 inject_custom_css()
 
@@ -55,8 +58,8 @@ render_page_guide(
 )
 
 # ── Tabs ──
-tab_overview, tab_investigations, tab_leads = st.tabs(
-    ["Case Brief", "Investigations", "New Leads"]
+tab_overview, tab_investigations, tab_leads, tab_artifacts = st.tabs(
+    ["Case Brief", "Investigations", "New Leads", "Artifacts"]
 )
 
 # ═══════════════════════════════════════════════
@@ -300,3 +303,251 @@ with tab_leads:
                             ContextImprovementDB.update_status(imp["id"], "rejected")
                             st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════
+# Artifacts Tab
+# ═══════════════════════════════════════════════
+with tab_artifacts:
+    render_tab_guide(
+        "Generate documents, flow diagrams, presentations, and other deliverables from your case knowledge. "
+        "Chat with Dupin to describe what you want — iterate until it's right."
+    )
+
+    artifacts = ArtifactDB.list_by_context(ctx_id)
+    creating_key = f"creating_artifact_{ctx_id}"
+    viewing_key = f"viewing_artifact_{ctx_id}"
+
+    # ── Creation Mode ──
+    if st.session_state.get(creating_key):
+        artifact_id = st.session_state[creating_key]
+        artifact = ArtifactDB.get(artifact_id)
+
+        if artifact:
+            st.markdown(f"### Creating: {artifact.get('name', 'New Artifact')}")
+
+            col_preview, col_chat = st.columns([1, 1], gap="large")
+
+            with col_preview:
+                render_section_header("document", "Live Preview")
+                # Show latest content from session state if available
+                preview_key = f"artifact_preview_{artifact_id}"
+                preview_content = st.session_state.get(preview_key, artifact.get("content", ""))
+                if preview_content:
+                    temp_artifact = {**artifact, "content": preview_content}
+                    render_artifact_preview(temp_artifact)
+                else:
+                    render_empty_state("document", "Preview will appear here",
+                                       "Describe what you want to Dupin on the right.")
+
+                # Save + Download buttons
+                if preview_content:
+                    col_save, col_dl, col_final = st.columns(3)
+                    with col_save:
+                        if st.button("Save Draft", key="save_draft", use_container_width=True):
+                            ArtifactDB.update(artifact_id, content=preview_content)
+                            st.success("Draft saved!")
+                    with col_dl:
+                        st.download_button(
+                            "Download .md",
+                            data=preview_content,
+                            file_name=f"{artifact.get('name', 'artifact').replace(' ', '_').lower()}.md",
+                            mime="text/markdown",
+                            use_container_width=True,
+                        )
+                    with col_final:
+                        if st.button("Finalize & Close", type="primary", key="finalize",
+                                     use_container_width=True):
+                            ArtifactDB.update(artifact_id, content=preview_content, status="final")
+                            ProductContextDB.add_history_entry(
+                                ctx_id,
+                                f"Created artifact: {artifact.get('name', '')}",
+                                f"Type: {artifact.get('artifact_type', '')}",
+                                "Dupin Artifact Generator",
+                            )
+                            del st.session_state[creating_key]
+                            if preview_key in st.session_state:
+                                del st.session_state[preview_key]
+                            st.rerun()
+
+                    # DOCX/PPTX export
+                    atype = artifact.get("artifact_type", "document")
+                    if atype in ("document", "markdown"):
+                        docx_bytes = export_artifact_to_docx({**artifact, "content": preview_content})
+                        if docx_bytes:
+                            st.download_button(
+                                "Download .docx", data=docx_bytes,
+                                file_name=f"{artifact.get('name', 'artifact').replace(' ', '_').lower()}.docx",
+                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                key="dl_docx",
+                            )
+                    elif atype == "presentation":
+                        pptx_bytes = export_artifact_to_pptx({**artifact, "content": preview_content})
+                        if pptx_bytes:
+                            st.download_button(
+                                "Download .pptx", data=pptx_bytes,
+                                file_name=f"{artifact.get('name', 'artifact').replace(' ', '_').lower()}.pptx",
+                                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                                key="dl_pptx",
+                            )
+
+            with col_chat:
+                render_section_header("chat", "Dupin Artifact Builder")
+
+                art_chat_key = f"artifact_chat_{artifact_id}"
+                if art_chat_key not in st.session_state:
+                    saved_hist = artifact.get("conversation_history", [])
+                    if isinstance(saved_hist, str):
+                        saved_hist = json.loads(saved_hist) if saved_hist else []
+                    st.session_state[art_chat_key] = saved_hist
+
+                def artifact_callback(messages):
+                    try:
+                        clean_resp, art_content, is_ready = get_artifact_response(
+                            messages=messages,
+                            product_context=ctx,
+                            artifact_type=artifact.get("artifact_type", "document"),
+                            reference_artifact=None,
+                        )
+                    except (AgentError, Exception) as e:
+                        return f"Connection issue. Please try again. ({type(e).__name__})"
+
+                    # Update preview if content was generated
+                    if art_content:
+                        st.session_state[f"artifact_preview_{artifact_id}"] = art_content
+                        ArtifactDB.update(artifact_id, content=art_content,
+                                          conversation_history=st.session_state[art_chat_key])
+
+                    return clean_resp
+
+                atype_label = {"document": "document", "flowchart": "flow diagram",
+                               "presentation": "presentation", "markdown": "markdown note"}
+                render_chat(
+                    session_key=art_chat_key,
+                    agent_callback=artifact_callback,
+                    placeholder=f"Describe the {atype_label.get(artifact.get('artifact_type', ''), 'artifact')} you want...",
+                    initial_assistant_message=(
+                        f"I'm ready to create a **{atype_label.get(artifact.get('artifact_type', ''), 'artifact')}** "
+                        f"using everything I know about this case.\n\n"
+                        f"What should it cover? Who's the audience? Any specific sections or format you need?"
+                    ),
+                )
+
+            # Cancel button
+            if st.button("Cancel", key="cancel_artifact"):
+                ArtifactDB.delete(artifact_id)
+                del st.session_state[creating_key]
+                st.rerun()
+
+    # ── Viewing Mode ──
+    elif st.session_state.get(viewing_key):
+        artifact_id = st.session_state[viewing_key]
+        artifact = ArtifactDB.get(artifact_id)
+
+        if artifact:
+            col_back, _ = st.columns([1, 4])
+            with col_back:
+                if st.button("< Back to Artifacts"):
+                    del st.session_state[viewing_key]
+                    st.rerun()
+
+            st.markdown(f"### {artifact.get('name', 'Untitled')}")
+            render_artifact_preview(artifact)
+
+            col_dl1, col_dl2, col_iterate = st.columns(3)
+            with col_dl1:
+                st.download_button(
+                    "Download .md",
+                    data=artifact.get("content", ""),
+                    file_name=f"{artifact.get('name', 'artifact').replace(' ', '_').lower()}.md",
+                    mime="text/markdown",
+                    use_container_width=True,
+                    key="view_dl_md",
+                )
+            with col_iterate:
+                if st.button("Iterate on this", type="primary", use_container_width=True,
+                             key="iterate_btn"):
+                    # Create new artifact referencing this one
+                    new_version = artifact.get("version", 1) + 1
+                    new_art = ArtifactDB.create(
+                        product_context_id=ctx_id,
+                        name=f"{artifact.get('name', 'Untitled')} v{new_version}",
+                        artifact_type=artifact.get("artifact_type", "document"),
+                        content=artifact.get("content", ""),
+                        parent_artifact_id=artifact["id"],
+                        version=new_version,
+                    )
+                    st.session_state[creating_key] = new_art["id"]
+                    if viewing_key in st.session_state:
+                        del st.session_state[viewing_key]
+                    st.rerun()
+
+    # ── List Mode (default) ──
+    else:
+        col_hdr, col_btn = st.columns([3, 1])
+        with col_hdr:
+            render_section_header("folder", "Case Artifacts")
+        with col_btn:
+            if st.button("+ Generate Artifact", type="primary", use_container_width=True):
+                st.session_state[f"show_artifact_form_{ctx_id}"] = True
+                st.rerun()
+
+        # New artifact form
+        form_key = f"show_artifact_form_{ctx_id}"
+        if st.session_state.get(form_key):
+            with st.container(border=True):
+                st.markdown("#### New Artifact")
+                art_name = st.text_input("Name", value="", placeholder="e.g., PRD Summary, User Flow, Stakeholder Deck")
+                art_type = st.selectbox("Type", ["document", "flowchart", "presentation", "markdown"],
+                                        format_func=lambda x: {"document": "Document", "flowchart": "Flow Diagram",
+                                                                "presentation": "Presentation", "markdown": "Markdown"}[x])
+
+                # Reference existing artifact
+                ref_artifact = None
+                if artifacts:
+                    ref_options = {"none": "Start fresh"} | {a["id"]: f"{a['name']} ({a['artifact_type']})" for a in artifacts}
+                    ref_choice = st.selectbox("Reference existing artifact (optional)",
+                                              options=list(ref_options.keys()),
+                                              format_func=lambda x: ref_options[x])
+                    if ref_choice != "none":
+                        ref_artifact = ArtifactDB.get(ref_choice)
+
+                col_create, col_cancel = st.columns(2)
+                with col_create:
+                    if st.button("Start Creating", type="primary", use_container_width=True,
+                                 disabled=not art_name):
+                        new_art = ArtifactDB.create(
+                            product_context_id=ctx_id,
+                            name=art_name,
+                            artifact_type=art_type,
+                            content=ref_artifact.get("content", "") if ref_artifact else "",
+                            parent_artifact_id=ref_artifact["id"] if ref_artifact else None,
+                        )
+                        st.session_state[creating_key] = new_art["id"]
+                        del st.session_state[form_key]
+                        st.rerun()
+                with col_cancel:
+                    if st.button("Cancel", use_container_width=True, key="cancel_form"):
+                        del st.session_state[form_key]
+                        st.rerun()
+
+        # Existing artifacts list
+        if not artifacts:
+            if not st.session_state.get(form_key):
+                render_empty_state(
+                    "folder",
+                    "No artifacts yet",
+                    "Generate documents, diagrams, or presentations from your case knowledge."
+                )
+        else:
+            for art in artifacts:
+                col_card, col_actions = st.columns([4, 1])
+                with col_card:
+                    render_artifact_card(art)
+                with col_actions:
+                    st.markdown("<div style='height:0.5rem;'></div>", unsafe_allow_html=True)
+                    if st.button("View", key=f"view_{art['id']}", use_container_width=True):
+                        st.session_state[viewing_key] = art["id"]
+                        st.rerun()
+                    if st.button("Delete", key=f"del_art_{art['id']}", use_container_width=True):
+                        ArtifactDB.delete(art["id"])
+                        st.rerun()
