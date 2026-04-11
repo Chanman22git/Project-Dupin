@@ -27,6 +27,7 @@ from components.graphics import (
     icon,
 )
 from config import BASE_URL, DEFAULT_LINK_EXPIRY_HOURS
+from components.guidance import render_page_guide, render_tab_guide
 
 inject_custom_css()
 
@@ -59,6 +60,13 @@ with col_back:
         st.session_state["selected_context_id"] = session["product_context_id"]
         st.switch_page("pages/2_Product_Context.py")
 
+render_page_guide(
+    "Investigation — Focused Research Session",
+    "An <strong>Investigation</strong> is a scoped research effort within a case. "
+    "Define what you want to learn, configure how Dupin interviews users, "
+    "issue <strong>Summons</strong> (shareable links) to invite participants, and review transcripts."
+)
+
 # ── Status Flow ──
 render_status_flow(session.get("status", "draft"))
 
@@ -90,6 +98,7 @@ tab_config, tab_links, tab_interviews, tab_clues = st.tabs(
 # Investigation Plan Tab
 # ═══════════════════════════════════════════════
 with tab_config:
+    render_tab_guide("Set the objective, scope, and target personas. Configure how Dupin conducts interviews — depth, focus, and boundaries.")
     render_section_header("target", "Investigation Details")
 
     col_d1, col_d2 = st.columns(2)
@@ -254,6 +263,7 @@ with tab_config:
 # Interview Summons Tab
 # ═══════════════════════════════════════════════
 with tab_links:
+    render_tab_guide("Generate unique, expiring links for each user you want to interview. Share the link — they'll chat with Dupin directly.")
     render_section_header("link", "Interview Summons")
 
     if session.get("status") != "active":
@@ -318,6 +328,7 @@ with tab_links:
 # Interview Transcripts Tab
 # ═══════════════════════════════════════════════
 with tab_interviews:
+    render_tab_guide("Full transcripts of each user interview. Click to expand and review what Dupin uncovered.")
     render_section_header("chat", "Interview Transcripts")
 
     if not conversations:
@@ -343,6 +354,7 @@ with tab_interviews:
 # Clues Tab
 # ═══════════════════════════════════════════════
 with tab_clues:
+    render_tab_guide("Synthesized insights extracted from interviews — pain points, user journeys, expectations, and contradictions.")
     render_section_header("lightbulb", "Clues & Evidence")
     render_empty_state(
         "lightbulb",

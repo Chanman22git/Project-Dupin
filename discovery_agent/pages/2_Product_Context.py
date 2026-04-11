@@ -18,6 +18,7 @@ from components.graphics import (
     render_empty_state,
     icon,
 )
+from components.guidance import render_page_guide, render_tab_guide
 
 inject_custom_css()
 
@@ -46,6 +47,12 @@ with col_back:
     if st.button("< Case Board", use_container_width=True):
         st.switch_page("pages/1_Home.py")
 
+render_page_guide(
+    "Case File — Product Definition",
+    "A <strong>Case</strong> is your product or initiative. Build the case brief by chatting with Dupin, "
+    "then launch <strong>Investigations</strong> (focused research sessions) to interview users."
+)
+
 # ── Tabs ──
 tab_overview, tab_investigations, tab_leads = st.tabs(
     ["Case Brief", "Investigations", "New Leads"]
@@ -55,6 +62,7 @@ tab_overview, tab_investigations, tab_leads = st.tabs(
 # Case Brief Tab
 # ═══════════════════════════════════════════════
 with tab_overview:
+    render_tab_guide("Define your product's description, documentation, and current state. Chat with Dupin or edit directly.")
     col_display, col_chat = st.columns([1, 1], gap="large")
 
     with col_display:
@@ -121,6 +129,7 @@ with tab_overview:
 # Investigations Tab
 # ═══════════════════════════════════════════════
 with tab_investigations:
+    render_tab_guide("Each investigation is a focused research session — e.g., exploring onboarding, a specific feature, or a persona's workflow.")
     sessions = DiscoverySessionDB.list_by_context(ctx_id)
 
     col_hdr, col_btn = st.columns([3, 1])
@@ -166,6 +175,7 @@ with tab_investigations:
 # New Leads Tab (Context Improvements)
 # ═══════════════════════════════════════════════
 with tab_leads:
+    render_tab_guide("Leads are suggestions to update your case brief based on what Dupin uncovered during interviews.")
     render_section_header("lightbulb", "New Leads")
     improvements = ContextImprovementDB.list_by_context(ctx_id)
 

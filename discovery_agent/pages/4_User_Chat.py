@@ -122,8 +122,9 @@ st.markdown(f"""
         </h2>
     </div>
     <p style="color:#8C8878; margin:0; font-size:0.95rem; line-height:1.5;">
-        Welcome, <strong>{link['user_name']}</strong>. Dupin would like to learn about your experience
-        with {product_name}. This conversation is confidential and will help the team improve the product.
+        Welcome, <strong>{link['user_name']}</strong>. This is a brief, confidential conversation about your
+        experience with <strong>{product_name}</strong>. Our AI assistant will ask about your workflows,
+        challenges, and expectations. Your feedback directly shapes the product.
     </p>
 </div>
 """, unsafe_allow_html=True)

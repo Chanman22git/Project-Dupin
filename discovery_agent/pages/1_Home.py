@@ -8,8 +8,15 @@ from components.graphics import (
     render_empty_state,
     icon,
 )
+from components.guidance import render_page_guide
 
 inject_custom_css()
+
+render_page_guide(
+    "Case Board — Your Products Dashboard",
+    "Each <strong>Case</strong> represents a product or initiative you're researching. "
+    "Open a case to define it, then launch investigations to interview users and gather insights."
+)
 
 # ── Hero Banner ──
 st.markdown(f"""

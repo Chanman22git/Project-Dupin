@@ -6,8 +6,15 @@ from components.graphics import (
     render_section_header,
     icon,
 )
+from components.guidance import render_page_guide
 
 inject_custom_css()
+
+render_page_guide(
+    "Dossier — Research Reports",
+    "The Dossier compiles all findings from your investigations into actionable reports: "
+    "user journey maps, pain point analysis, expectation rankings, and cross-case patterns."
+)
 
 # ── Header ──
 st.markdown(f"""
