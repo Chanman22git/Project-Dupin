@@ -13,40 +13,40 @@ inject_custom_css()
 # ── Header ──
 st.markdown(f"""
 <div style="
-    background: linear-gradient(135deg, #F2EDE8 0%, #FAFAF8 50%, #F2EDE8 100%);
+    background: linear-gradient(135deg, #E8E3D8 0%, #F0EDE6 50%, #E8E3D8 100%);
     border-radius: 16px;
     padding: 2.5rem;
     margin-bottom: 2rem;
     text-align: center;
-    border: 1px solid #E8E0D8;
+    border: 1px solid #D0CAC0;
     position: relative;
     overflow: hidden;
 ">
     <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); opacity:0.04;">
         <svg width="300" height="300" viewBox="0 0 300 300" fill="none">
-            <circle cx="150" cy="150" r="140" stroke="#8B7355" stroke-width="1.5"/>
-            <circle cx="150" cy="150" r="100" stroke="#8B7355" stroke-width="1"/>
-            <circle cx="150" cy="150" r="60" stroke="#8B7355" stroke-width="0.75"/>
-            <path d="M150 10 L150 290" stroke="#8B7355" stroke-width="0.5"/>
-            <path d="M10 150 L290 150" stroke="#8B7355" stroke-width="0.5"/>
+            <circle cx="150" cy="150" r="140" stroke="#C4823A" stroke-width="1.5"/>
+            <circle cx="150" cy="150" r="100" stroke="#C4823A" stroke-width="1"/>
+            <circle cx="150" cy="150" r="60" stroke="#C4823A" stroke-width="0.75"/>
+            <path d="M150 10 L150 290" stroke="#C4823A" stroke-width="0.5"/>
+            <path d="M10 150 L290 150" stroke="#C4823A" stroke-width="0.5"/>
         </svg>
     </div>
     <div style="position:relative; z-index:1;">
         <div style="margin-bottom:1rem; opacity:0.3;">
-            {icon("chart", 48, "#8B7355")}
+            {icon("chart", 48, "#C4823A")}
         </div>
         <h1 style="margin:0 !important; font-size:2rem !important;">Reports</h1>
-        <p style="color:#6B6156; margin:0.75rem auto 0; max-width:450px; line-height:1.5;">
+        <p style="color:#8C8878; margin:0.75rem auto 0; max-width:450px; line-height:1.5;">
             Comprehensive research reports with synthesized findings across all your discovery sessions.
         </p>
         <div style="
             display:inline-block;
             margin-top:1.25rem;
             padding:0.4rem 1rem;
-            background:#F2EDE8;
+            background:#E8E3D8;
             border-radius:999px;
             font-size:0.8rem;
-            color:#8B7355;
+            color:#C4823A;
             font-weight:600;
             letter-spacing:0.05em;
         ">COMING IN PHASE 5</div>

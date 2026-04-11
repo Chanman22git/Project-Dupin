@@ -36,9 +36,9 @@ for ctx in contexts:
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    render_metric_card("folder", "Product Contexts", total_contexts, "#8B7355")
+    render_metric_card("folder", "Product Contexts", total_contexts, "#C4823A")
 with col2:
-    render_metric_card("target", "Discovery Sessions", total_sessions, "#C4956A")
+    render_metric_card("target", "Discovery Sessions", total_sessions, "#E8B87A")
 with col3:
     render_metric_card("chat", "Conversations", total_conversations, "#7A9E7E")
 with col4:
@@ -73,12 +73,12 @@ else:
                 if desc:
                     truncated = desc[:180] + ("..." if len(desc) > 180 else "")
                     st.markdown(
-                        f'<p style="color:#6B6156; font-size:0.9rem; line-height:1.5;">{truncated}</p>',
+                        f'<p style="color:#8C8878; font-size:0.9rem; line-height:1.5;">{truncated}</p>',
                         unsafe_allow_html=True,
                     )
                 else:
                     st.markdown(
-                        '<p style="color:#A89F91; font-size:0.9rem; font-style:italic;">No description yet</p>',
+                        '<p style="color:#B8B4A8; font-size:0.9rem; font-style:italic;">No description yet</p>',
                         unsafe_allow_html=True,
                     )
             with col_meta:
@@ -86,12 +86,12 @@ else:
                     f"""
                     <div style="display:flex; gap:1.5rem; margin-top:0.5rem;">
                         <div style="text-align:center;">
-                            <div style="font-size:1.4rem; font-weight:700; color:#8B7355;">{session_count}</div>
-                            <div style="font-size:0.75rem; color:#A89F91; text-transform:uppercase; letter-spacing:0.05em;">Sessions</div>
+                            <div style="font-size:1.4rem; font-weight:700; color:#C4823A;">{session_count}</div>
+                            <div style="font-size:0.75rem; color:#B8B4A8; text-transform:uppercase; letter-spacing:0.05em;">Sessions</div>
                         </div>
                         <div style="text-align:center;">
-                            <div style="font-size:0.8rem; color:#A89F91; margin-top:0.5rem;">{icon("clock", 14, "#A89F91")} Updated</div>
-                            <div style="font-size:0.85rem; color:#6B6156;">{ctx['updated_at'][:10]}</div>
+                            <div style="font-size:0.8rem; color:#B8B4A8; margin-top:0.5rem;">{icon("clock", 14, "#B8B4A8")} Updated</div>
+                            <div style="font-size:0.85rem; color:#8C8878;">{ctx['updated_at'][:10]}</div>
                         </div>
                     </div>
                     """,

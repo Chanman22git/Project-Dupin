@@ -36,10 +36,10 @@ if not token:
     st.markdown(f"""
     <div style="text-align:center; padding:4rem 2rem;">
         <div style="opacity:0.15; margin-bottom:1.5rem;">
-            {icon("link", 80, "#8B7355")}
+            {icon("link", 80, "#C4823A")}
         </div>
-        <h2 style="color:#3D3529;">No Session Link Provided</h2>
-        <p style="color:#A89F91; max-width:400px; margin:0 auto; line-height:1.6;">
+        <h2 style="color:#3D3D35;">No Session Link Provided</h2>
+        <p style="color:#B8B4A8; max-width:400px; margin:0 auto; line-height:1.6;">
             Please use the link shared by your product manager to access this conversation.
         </p>
     </div>
@@ -52,10 +52,10 @@ if not link:
     st.markdown(f"""
     <div style="text-align:center; padding:4rem 2rem;">
         <div style="opacity:0.15; margin-bottom:1.5rem;">
-            {icon("warning", 80, "#C27C6E")}
+            {icon("warning", 80, "#A64B2A")}
         </div>
-        <h2 style="color:#3D3529;">Invalid Link</h2>
-        <p style="color:#A89F91; max-width:400px; margin:0 auto; line-height:1.6;">
+        <h2 style="color:#3D3D35;">Invalid Link</h2>
+        <p style="color:#B8B4A8; max-width:400px; margin:0 auto; line-height:1.6;">
             This session link is not valid. Please contact your product manager for a new link.
         </p>
     </div>
@@ -72,10 +72,10 @@ if link["status"] == "expired" or (
     st.markdown(f"""
     <div style="text-align:center; padding:4rem 2rem;">
         <div style="opacity:0.15; margin-bottom:1.5rem;">
-            {icon("clock", 80, "#D4A056")}
+            {icon("clock", 80, "#E8B87A")}
         </div>
-        <h2 style="color:#3D3529;">Link Expired</h2>
-        <p style="color:#A89F91; max-width:400px; margin:0 auto; line-height:1.6;">
+        <h2 style="color:#3D3D35;">Link Expired</h2>
+        <p style="color:#B8B4A8; max-width:400px; margin:0 auto; line-height:1.6;">
             This session link has expired. Please contact your product manager for a new link.
         </p>
     </div>
@@ -87,10 +87,10 @@ if link["status"] == "completed":
     st.markdown(f"""
     <div style="text-align:center; padding:4rem 2rem;">
         <div style="opacity:0.15; margin-bottom:1.5rem;">
-            {icon("check", 80, "#7A9E7E")}
+            {icon("check", 80, "#5C7A6E")}
         </div>
-        <h2 style="color:#3D3529;">Conversation Complete</h2>
-        <p style="color:#A89F91; max-width:400px; margin:0 auto; line-height:1.6;">
+        <h2 style="color:#3D3D35;">Conversation Complete</h2>
+        <p style="color:#B8B4A8; max-width:400px; margin:0 auto; line-height:1.6;">
             Thank you for your participation! Your feedback has been recorded.
         </p>
     </div>
@@ -109,19 +109,19 @@ product_name = product_ctx.get("name", "our product") if product_ctx else "our p
 # ── Branded Header ──
 st.markdown(f"""
 <div style="
-    background: linear-gradient(135deg, #F2EDE8 0%, #FAFAF8 100%);
+    background: linear-gradient(135deg, #E8E3D8 0%, #F0EDE6 100%);
     border-radius: 12px;
     padding: 1.5rem 2rem;
     margin-bottom: 1.5rem;
-    border: 1px solid #E8E0D8;
+    border: 1px solid #D0CAC0;
 ">
     <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.5rem;">
-        {icon("chat", 28, "#8B7355")}
+        {icon("chat", 28, "#C4823A")}
         <h2 style="margin:0 !important; padding:0 !important; font-size:1.5rem !important;">
             Discovery Conversation
         </h2>
     </div>
-    <p style="color:#6B6156; margin:0; font-size:0.95rem; line-height:1.5;">
+    <p style="color:#8C8878; margin:0; font-size:0.95rem; line-height:1.5;">
         Welcome, <strong>{link['user_name']}</strong>. We'd love to learn about your experience
         with {product_name}. This conversation is confidential and will help us improve the product.
     </p>
@@ -166,10 +166,10 @@ if st.session_state.get(complete_key):
     st.markdown(f"""
     <div style="text-align:center; padding:3rem 2rem;">
         <div style="opacity:0.15; margin-bottom:1.5rem;">
-            {icon("check", 80, "#7A9E7E")}
+            {icon("check", 80, "#5C7A6E")}
         </div>
-        <h2 style="color:#3D3529;">Conversation Complete</h2>
-        <p style="color:#A89F91; max-width:400px; margin:0 auto; line-height:1.6;">
+        <h2 style="color:#3D3D35;">Conversation Complete</h2>
+        <p style="color:#B8B4A8; max-width:400px; margin:0 auto; line-height:1.6;">
             Thank you for your participation! Your feedback has been recorded.
         </p>
     </div>

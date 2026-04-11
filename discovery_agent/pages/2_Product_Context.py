@@ -149,7 +149,7 @@ with tab_sessions:
                     st.markdown(f"#### {session['name']}")
                     if session.get("objective"):
                         st.markdown(
-                            f'<p style="color:#6B6156; font-size:0.9rem;">{session["objective"][:150]}</p>',
+                            f'<p style="color:#8C8878; font-size:0.9rem;">{session["objective"][:150]}</p>',
                             unsafe_allow_html=True,
                         )
                 with col2:

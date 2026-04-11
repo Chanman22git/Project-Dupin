@@ -71,13 +71,13 @@ completed_convs = sum(1 for c in conversations if c["status"] == "completed")
 
 mc1, mc2, mc3, mc4 = st.columns(4)
 with mc1:
-    render_metric_card("link", "Total Links", len(links), "#8B7355")
+    render_metric_card("link", "Total Links", len(links), "#C4823A")
 with mc2:
-    render_metric_card("users", "Active Links", active_links, "#7A9E7E")
+    render_metric_card("users", "Active Links", active_links, "#5C7A6E")
 with mc3:
-    render_metric_card("chat", "Conversations", len(conversations), "#C4956A")
+    render_metric_card("chat", "Conversations", len(conversations), "#E8B87A")
 with mc4:
-    render_metric_card("check", "Completed", completed_convs, "#6B8EAE")
+    render_metric_card("check", "Completed", completed_convs, "#8C8878")
 
 st.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
 
@@ -102,7 +102,7 @@ with tab_config:
         if personas:
             st.markdown(
                 '<div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.06em; '
-                'color:#A89F91; margin-bottom:0.5rem;">Target Personas</div>',
+                'color:#B8B4A8; margin-bottom:0.5rem;">Target Personas</div>',
                 unsafe_allow_html=True,
             )
             for p in personas:
@@ -306,8 +306,8 @@ with tab_links:
                     st.markdown(
                         f"""<div style="margin-top:0.5rem;">
                             {render_status_pill(link['status'])}
-                            <span style="color:#A89F91; font-size:0.8rem; margin-left:0.75rem;">
-                                {icon("clock", 12, "#A89F91")} Expires: {link['expires_at'][:16]}
+                            <span style="color:#B8B4A8; font-size:0.8rem; margin-left:0.75rem;">
+                                {icon("clock", 12, "#B8B4A8")} Expires: {link['expires_at'][:16]}
                             </span>
                         </div>""",
                         unsafe_allow_html=True,
