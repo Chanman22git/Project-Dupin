@@ -102,11 +102,32 @@ else:
         inv_count = ProductContextDB.count_sessions(c["id"])
         summary = c.get("summary", "")
         desc = c.get("description", "")
+        docs = c.get("documentation", "")
+        state = c.get("current_state", "")
+        conv_history = c.get("context_conversation_history", [])
 
-        # Use summary if available, otherwise fall back to first sentence of description
-        if not summary and desc:
-            summary = desc.split(".")[0].strip()
-            if len(summary) > 120:
+        # Build one-liner from whatever we have
+        if not summary:
+            # Try first sentence of description
+            if desc:
+                summary = desc.split(".")[0].strip()
+            # Fallback to first sentence of current_state
+            elif state:
+                summary = state.split(".")[0].strip()
+            # Fallback to first sentence of documentation
+            elif docs:
+                summary = docs.split(".")[0].strip()
+            # Last resort: check if there's conversation history (PM chatted but extraction didn't work)
+            elif isinstance(conv_history, list) and len(conv_history) > 1:
+                # Find first substantive user message
+                for msg in conv_history:
+                    if msg.get("role") == "user":
+                        user_text = msg.get("content", "")
+                        if len(user_text) > 10 and not user_text.startswith("["):
+                            summary = user_text.split(".")[0].strip()
+                            break
+
+            if summary and len(summary) > 120:
                 summary = summary[:117] + "..."
 
         with st.container(border=True):
