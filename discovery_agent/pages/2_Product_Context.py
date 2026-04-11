@@ -187,18 +187,6 @@ with tab_overview:
 
     st.divider()
 
-        # Collapsible chat for updates
-        with st.expander("Chat with Dupin to update the brief", expanded=False):
-            render_chat(
-                session_key=chat_key,
-                agent_callback=context_agent_callback,
-                placeholder="Ask Dupin to update the brief, or say 'save this'...",
-                initial_assistant_message=(
-                    "The case brief is filed. Need to update anything? "
-                    "Tell me what's changed and say **\"save this\"** when ready."
-                ),
-            )
-
 # ═══════════════════════════════════════════════
 # Investigations Tab
 # ═══════════════════════════════════════════════
