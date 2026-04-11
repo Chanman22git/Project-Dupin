@@ -71,31 +71,36 @@ with tab_overview:
         "Chat on the right to add details, ask questions, or update the brief. Changes are tracked."
     )
 
-    # Chat state init
+    # Chat state — start fresh each visit, but agent remembers everything from DB
     chat_key = f"pm_context_chat_{ctx_id}"
+    db_history_key = f"pm_context_db_history_{ctx_id}"
     if chat_key not in st.session_state:
+        # Load full history from DB for the agent's memory
         saved = ctx.get("context_conversation_history", [])
         if isinstance(saved, str):
             saved = json.loads(saved) if saved else []
-        st.session_state[chat_key] = saved
+        st.session_state[db_history_key] = saved
+        # Start with empty visible chat — PM gets a fresh conversation
+        st.session_state[chat_key] = []
 
     def context_agent_callback(messages):
+        # Merge DB history + current session messages for full agent context
+        db_history = st.session_state.get(db_history_key, [])
+        full_history = db_history + messages
         try:
-            raw_response = get_context_agent_response(messages, ctx)
+            raw_response = get_context_agent_response(full_history, ctx)
         except (AgentError, Exception) as e:
             return f"I'm having a brief connection issue. Please try again. ({type(e).__name__})"
         _, clean_response = detect_save(raw_response, SAVE_MARKER)
 
-        # Count user messages — auto-extract after every substantive exchange
+        # Auto-extract after every user message
         user_msg_count = sum(1 for m in messages if m.get("role") == "user")
-        should_extract = user_msg_count >= 1  # Extract after every user message
-
-        if should_extract:
+        if user_msg_count >= 1:
             try:
-                full_messages = messages + [
+                extract_messages = full_history + [
                     {"role": "assistant", "content": clean_response}
                 ]
-                extracted = extract_product_context(full_messages)
+                extracted = extract_product_context(extract_messages)
                 update_kwargs = {}
                 changes = []
                 for field in ["name", "description", "documentation", "current_state"]:
@@ -120,21 +125,16 @@ with tab_overview:
                         first_sentence = first_sentence[:117] + "..."
                     update_kwargs["summary"] = first_sentence
 
-                # Always save conversation history
-                update_kwargs["context_conversation_history"] = (
-                    st.session_state[chat_key]
-                    + [{"role": "assistant", "content": clean_response}]
-                )
+                # Save full conversation history (DB history + current session)
+                all_messages = full_history + [{"role": "assistant", "content": clean_response}]
+                update_kwargs["context_conversation_history"] = all_messages
                 if update_kwargs:
                     ProductContextDB.update(ctx_id, **update_kwargs)
                 for change in changes:
                     ProductContextDB.add_history_entry(ctx_id, change, clean_response[:150], "Dupin Assistant")
             except Exception:
-                # Extraction failed — still save conversation history
-                ProductContextDB.update(ctx_id, context_conversation_history=(
-                    st.session_state[chat_key]
-                    + [{"role": "assistant", "content": clean_response}]
-                ))
+                all_messages = full_history + [{"role": "assistant", "content": clean_response}]
+                ProductContextDB.update(ctx_id, context_conversation_history=all_messages)
 
         return clean_response
 

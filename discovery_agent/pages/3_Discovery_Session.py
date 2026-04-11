@@ -188,25 +188,28 @@ with tab_config:
         render_section_header("chat", "Dupin Assistant")
 
         chat_key = f"pm_session_chat_{session_id}"
+        db_hist_key = f"pm_session_db_history_{session_id}"
         if chat_key not in st.session_state:
             saved = session.get("context_conversation_history", [])
             if isinstance(saved, str):
                 saved = json.loads(saved) if saved else []
-            st.session_state[chat_key] = saved
+            st.session_state[db_hist_key] = saved
+            st.session_state[chat_key] = []
 
         def session_agent_callback(messages):
+            db_history = st.session_state.get(db_hist_key, [])
+            full_history = db_history + messages
             try:
-                raw = get_session_agent_response(messages, session, product_ctx or {})
+                raw = get_session_agent_response(full_history, session, product_ctx or {})
             except (AgentError, Exception) as e:
                 return f"I'm having a brief connection issue. Please try again. ({type(e).__name__})"
             _, clean = detect_save(raw, SESSION_SAVE_MARKER)
 
-            # Auto-extract after every user message
             user_msg_count = sum(1 for m in messages if m.get("role") == "user")
             if user_msg_count >= 1:
                 try:
-                    full_messages = messages + [{"role": "assistant", "content": clean}]
-                    extracted = extract_session_config(full_messages)
+                    extract_msgs = full_history + [{"role": "assistant", "content": clean}]
+                    extracted = extract_session_config(extract_msgs)
                     update_kwargs = {}
                     for field in ["objective", "scope", "name"]:
                         val = extracted.get(field)
@@ -222,16 +225,12 @@ with tab_config:
                             if v is not None:
                                 merged[k] = v
                         update_kwargs["agent_behavior"] = merged
-                    update_kwargs["context_conversation_history"] = (
-                        st.session_state[chat_key]
-                        + [{"role": "assistant", "content": clean}]
-                    )
+                    all_msgs = full_history + [{"role": "assistant", "content": clean}]
+                    update_kwargs["context_conversation_history"] = all_msgs
                     DiscoverySessionDB.update(session_id, **update_kwargs)
                 except Exception:
-                    DiscoverySessionDB.update(session_id, context_conversation_history=(
-                        st.session_state[chat_key]
-                        + [{"role": "assistant", "content": clean}]
-                    ))
+                    all_msgs = full_history + [{"role": "assistant", "content": clean}]
+                    DiscoverySessionDB.update(session_id, context_conversation_history=all_msgs)
             return clean
 
         render_chat(
