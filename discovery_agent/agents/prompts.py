@@ -344,15 +344,23 @@ def _format_transcripts(conversations):
 import json
 
 
-CONTEXT_EXTRACTION_PROMPT = """Extract structured case brief from this conversation between Dupin and a Product Manager.
-Return a JSON object with these keys:
-- name: case name if clearly stated (string, or null if not discussed)
-- description: product/case description synthesized from the conversation (string)
-- documentation: any technical docs, APIs, specs, or evidence mentioned (string)
-- current_state: what the product currently does, its current status (string)
+CONTEXT_EXTRACTION_PROMPT = """Extract information about the PRODUCT being discussed from this conversation.
 
-Only populate fields where the conversation provides clear information.
-Use empty string for fields not discussed. Synthesize naturally — don't just copy-paste."""
+IMPORTANT: The PM is using a tool called Dupin to research their product. Extract details about
+the PM's PRODUCT — NOT about Dupin itself. Ignore any mentions of Dupin, AI agents, or the
+discovery platform. Focus only on what the PM says about the product they are investigating.
+
+Return a JSON object with these keys:
+- name: the product name if mentioned (string, or null)
+- description: what the product does, who uses it, what problem it solves — ONE concise paragraph (string)
+- documentation: any technical specs, APIs, PRDs, or reference docs the PM mentioned or pasted (string)
+- current_state: what the product currently does today, its status, version, user count (string)
+
+RULES:
+- Only extract what the PM explicitly stated about THEIR product
+- Use empty string for fields the PM hasn't discussed yet
+- Keep description concise — 1-2 sentences max
+- Do NOT describe Dupin or the discovery process itself"""
 
 
 SESSION_EXTRACTION_PROMPT = """Extract structured investigation plan from this conversation between Dupin and a Product Manager.
