@@ -71,7 +71,7 @@ class ProductContextDB:
     def update(ctx_id: str, **kwargs) -> dict | None:
         conn = get_connection()
         allowed = {"name", "description", "documentation", "current_state",
-                    "context_conversation_history", "case_history"}
+                    "context_conversation_history", "case_history", "summary"}
         updates = []
         values = []
         for k, v in kwargs.items():

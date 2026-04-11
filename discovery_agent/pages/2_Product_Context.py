@@ -110,6 +110,16 @@ with tab_overview:
                                 changes.append(f"Updated {field_label}")
                             else:
                                 changes.append(f"Added {field_label}")
+                # Generate one-liner summary from whatever we know
+                desc_val = update_kwargs.get("description", ctx.get("description", ""))
+                state_val = update_kwargs.get("current_state", ctx.get("current_state", ""))
+                if desc_val:
+                    # Build a brief summary: first sentence of description, max 120 chars
+                    first_sentence = desc_val.split(".")[0].strip()
+                    if len(first_sentence) > 120:
+                        first_sentence = first_sentence[:117] + "..."
+                    update_kwargs["summary"] = first_sentence
+
                 # Always save conversation history
                 update_kwargs["context_conversation_history"] = (
                     st.session_state[chat_key]

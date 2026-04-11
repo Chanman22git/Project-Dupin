@@ -100,16 +100,22 @@ if not cases:
 else:
     for c in cases:
         inv_count = ProductContextDB.count_sessions(c["id"])
+        summary = c.get("summary", "")
         desc = c.get("description", "")
+
+        # Use summary if available, otherwise fall back to first sentence of description
+        if not summary and desc:
+            summary = desc.split(".")[0].strip()
+            if len(summary) > 120:
+                summary = summary[:117] + "..."
 
         with st.container(border=True):
             col_main, col_meta, col_action = st.columns([3, 2, 1])
             with col_main:
                 st.markdown(f"#### {c['name']}")
-                if desc:
-                    truncated = desc[:180] + ("..." if len(desc) > 180 else "")
+                if summary:
                     st.markdown(
-                        f'<p style="color:#8C8878; font-size:0.9rem; line-height:1.5;">{truncated}</p>',
+                        f'<p style="color:#8C8878; font-size:0.9rem; line-height:1.5;">{summary}</p>',
                         unsafe_allow_html=True,
                     )
                 else:

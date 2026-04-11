@@ -23,6 +23,7 @@ def init_db():
             documentation TEXT DEFAULT '',
             current_state TEXT DEFAULT '',
             case_history TEXT DEFAULT '[]',
+            summary TEXT DEFAULT '',
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
             context_conversation_history TEXT DEFAULT '[]'
@@ -188,7 +189,11 @@ def init_db():
     try:
         cursor.execute("ALTER TABLE product_contexts ADD COLUMN case_history TEXT DEFAULT '[]'")
     except Exception:
-        pass  # Column already exists
+        pass
+    try:
+        cursor.execute("ALTER TABLE product_contexts ADD COLUMN summary TEXT DEFAULT ''")
+    except Exception:
+        pass
 
     conn.commit()
     conn.close()
