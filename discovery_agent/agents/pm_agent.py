@@ -57,15 +57,27 @@ def get_context_agent_response(messages: list[dict], product_context: dict) -> s
     """Get a conversational response from the PM context setup agent."""
     current_state = ""
     if product_context.get("description"):
-        current_state += f"\nCurrent description: {product_context['description']}"
+        current_state += f"\nSubject: {product_context['description']}"
     if product_context.get("documentation"):
-        current_state += f"\nCurrent documentation: {product_context['documentation']}"
+        current_state += f"\nEvidence & Documentation: {product_context['documentation']}"
     if product_context.get("current_state"):
-        current_state += f"\nCurrent product state: {product_context['current_state']}"
+        current_state += f"\nCurrent State of Affairs: {product_context['current_state']}"
+
+    # Include case history so Dupin can explain past decisions
+    history = product_context.get("case_history", [])
+    history_text = ""
+    if history:
+        recent = history[-10:]  # Last 10 entries
+        history_lines = []
+        for h in recent:
+            history_lines.append(f"  [{h.get('timestamp', '')[:16]}] {h.get('source', 'PM')}: {h.get('action', '')} — {h.get('details', '')}")
+        history_text = "\n\nCASE HISTORY (how the brief evolved — use this to answer questions about past decisions):\n" + "\n".join(history_lines)
 
     system = PM_CONTEXT_SYSTEM_PROMPT
     if current_state:
-        system += f"\n\nHere is what has been defined so far:{current_state}"
+        system += f"\n\nCURRENT CASE BRIEF:{current_state}"
+    if history_text:
+        system += history_text
     system += _SAVE_INSTRUCTION.format(marker=SAVE_MARKER)
 
     api_messages = _to_api_messages(_trim_history(messages))

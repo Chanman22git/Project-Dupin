@@ -71,7 +71,7 @@ class ProductContextDB:
     def update(ctx_id: str, **kwargs) -> dict | None:
         conn = get_connection()
         allowed = {"name", "description", "documentation", "current_state",
-                    "context_conversation_history"}
+                    "context_conversation_history", "case_history"}
         updates = []
         values = []
         for k, v in kwargs.items():
@@ -86,6 +86,26 @@ class ProductContextDB:
         values.append(ctx_id)
         conn.execute(
             f"UPDATE product_contexts SET {', '.join(updates)} WHERE id = ?", values
+        )
+        conn.commit()
+        conn.close()
+        return ProductContextDB.get(ctx_id)
+
+    @staticmethod
+    def add_history_entry(ctx_id: str, action: str, details: str, source: str = "PM") -> dict | None:
+        """Append a timestamped entry to the case history log."""
+        conn = get_connection()
+        row = conn.execute("SELECT case_history FROM product_contexts WHERE id = ?", (ctx_id,)).fetchone()
+        history = json.loads(row["case_history"]) if row and row["case_history"] else []
+        history.append({
+            "timestamp": _now(),
+            "action": action,
+            "details": details,
+            "source": source,
+        })
+        conn.execute(
+            "UPDATE product_contexts SET case_history = ?, updated_at = ? WHERE id = ?",
+            (json.dumps(history), _now(), ctx_id),
         )
         conn.commit()
         conn.close()

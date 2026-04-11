@@ -22,6 +22,7 @@ def init_db():
             description TEXT DEFAULT '',
             documentation TEXT DEFAULT '',
             current_state TEXT DEFAULT '',
+            case_history TEXT DEFAULT '[]',
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
             context_conversation_history TEXT DEFAULT '[]'
@@ -165,6 +166,12 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_expectations_session ON expectations(discovery_session_id);
         CREATE INDEX IF NOT EXISTS idx_improvements_context ON context_improvements(product_context_id);
     """)
+
+    # Migrations for existing databases
+    try:
+        cursor.execute("ALTER TABLE product_contexts ADD COLUMN case_history TEXT DEFAULT '[]'")
+    except Exception:
+        pass  # Column already exists
 
     conn.commit()
     conn.close()

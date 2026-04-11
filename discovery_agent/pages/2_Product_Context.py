@@ -60,15 +60,15 @@ tab_overview, tab_investigations, tab_leads = st.tabs(
 )
 
 # ═══════════════════════════════════════════════
-# Case Brief Tab
+# Case Brief Tab — Always Split: Evidence Board + Dupin Chat
 # ═══════════════════════════════════════════════
 with tab_overview:
-    # Check if case brief has any content
-    fields = ["description", "documentation", "current_state"]
-    filled = sum(1 for f in fields if ctx.get(f))
-    has_brief = filled > 0
+    render_tab_guide(
+        "The left panel shows everything Dupin knows about this case. "
+        "Chat on the right to add details, ask questions, or update the brief. Changes are tracked."
+    )
 
-    # Chat state init (needed regardless of layout)
+    # Chat state init
     chat_key = f"pm_context_chat_{ctx_id}"
     if chat_key not in st.session_state:
         saved = ctx.get("context_conversation_history", [])
@@ -84,72 +84,108 @@ with tab_overview:
         should_save, clean_response = detect_save(raw_response, SAVE_MARKER)
 
         if should_save:
-            with st.spinner("Filing case brief..."):
-                full_messages = messages + [
-                    {"role": "assistant", "content": clean_response}
-                ]
-                extracted = extract_product_context(full_messages)
-                update_kwargs = {}
-                for field in ["name", "description", "documentation", "current_state"]:
-                    val = extracted.get(field)
-                    if val and val != "null":
+            # Extract and save, with history tracking
+            full_messages = messages + [
+                {"role": "assistant", "content": clean_response}
+            ]
+            extracted = extract_product_context(full_messages)
+            update_kwargs = {}
+            changes = []
+            for field in ["name", "description", "documentation", "current_state"]:
+                val = extracted.get(field)
+                if val and val != "null":
+                    old_val = ctx.get(field, "")
+                    if val != old_val:
                         update_kwargs[field] = val
-                update_kwargs["context_conversation_history"] = (
-                    st.session_state[chat_key]
-                    + [{"role": "assistant", "content": clean_response}]
-                )
+                        field_label = {"description": "Subject", "documentation": "Evidence & Documentation",
+                                       "current_state": "Current State", "name": "Case Name"}.get(field, field)
+                        if old_val:
+                            changes.append(f"Updated {field_label}")
+                        else:
+                            changes.append(f"Added {field_label}")
+            update_kwargs["context_conversation_history"] = (
+                st.session_state[chat_key]
+                + [{"role": "assistant", "content": clean_response}]
+            )
+            if update_kwargs:
                 ProductContextDB.update(ctx_id, **update_kwargs)
+            # Log history for each change
+            for change in changes:
+                ProductContextDB.add_history_entry(ctx_id, change, clean_response[:150], "Dupin Assistant")
 
         return clean_response
 
-    if not has_brief:
-        # ── Chat-only mode: no brief yet ──
-        render_tab_guide(
-            "Tell Dupin about your product. As you chat, Dupin automatically captures "
-            "and organizes what you share into a structured case brief."
+    col_evidence, col_chat = st.columns([1, 1], gap="large")
+
+    # ── Left: Evidence Board (What We Know) ──
+    with col_evidence:
+        render_section_header("document", "What We Know")
+
+        fields = ["description", "documentation", "current_state"]
+        filled = sum(1 for f in fields if ctx.get(f))
+        has_content = filled > 0
+
+        if has_content:
+            if ctx.get("description"):
+                render_info_field("Subject", ctx["description"])
+            if ctx.get("documentation"):
+                render_info_field("Evidence & Documentation", ctx["documentation"])
+            if ctx.get("current_state"):
+                render_info_field("Current State of Affairs", ctx["current_state"])
+
+            # Show case history
+            history = ctx.get("case_history", [])
+            if history:
+                with st.expander(f"Case History ({len(history)} entries)", expanded=False):
+                    for entry in reversed(history):
+                        ts = entry.get("timestamp", "")[:16]
+                        source = entry.get("source", "PM")
+                        action = entry.get("action", "")
+                        details = entry.get("details", "")
+                        source_color = "#C4823A" if "Dupin" in source else "#5C7A6E" if "Investigation" in source else "#8C8878"
+                        st.markdown(
+                            f'<div style="border-left:3px solid {source_color};padding:0.4rem 0.75rem;'
+                            f'margin-bottom:0.5rem;border-radius:0 4px 4px 0;">'
+                            f'<div style="font-size:0.7rem;color:#B8B4A8;">{ts} · {source}</div>'
+                            f'<div style="font-size:0.85rem;color:#3D3D35;font-weight:500;">{action}</div>'
+                            f'<div style="font-size:0.8rem;color:#8C8878;margin-top:0.15rem;">{details[:120]}</div>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+        else:
+            render_empty_state(
+                "document",
+                "Nothing here yet",
+                "Chat with Dupin on the right to start building the case brief. "
+                "Information will appear here as you share it."
+            )
+
+    # ── Right: Dupin Chat ──
+    with col_chat:
+        render_section_header("chat", "Dupin Assistant")
+
+        greeting = (
+            "Welcome, detective. I'm Dupin, your discovery assistant.\n\n"
+            if not has_content else
+            "The case brief is taking shape. What else should I know? "
+            "You can also ask me **why** something is in the brief \u2014 "
+            "I remember how things evolved.\n\n"
         )
-        render_chat(
-            session_key=chat_key,
-            agent_callback=context_agent_callback,
-            placeholder="Tell Dupin about your product...",
-            initial_assistant_message=(
-                "Welcome, detective. I'm Dupin, your discovery assistant.\n\n"
+        if not has_content:
+            greeting += (
                 "Let's build the case brief. I'll ask you some questions and "
                 "organize everything as we go. To start \u2014 **what product or "
                 "initiative are you investigating?**"
-            ),
-        )
-    else:
-        # ── Brief exists: show structured view + chat for updates ──
-        render_tab_guide("Dupin has captured your case brief. Continue chatting to refine it \u2014 updates save automatically.")
-
-        col_brief, col_chat = st.columns([1, 1], gap="large")
-
-        with col_brief:
-            col_hdr, col_ring = st.columns([3, 1])
-            with col_hdr:
-                render_section_header("document", "Case Brief")
-            with col_ring:
-                pct = int((filled / len(fields)) * 100)
-                render_progress_ring(pct, "Complete")
-
-            render_info_field("Subject", ctx.get("description"))
-            render_info_field("Evidence & Documentation", ctx.get("documentation"))
-            render_info_field("Current State of Affairs", ctx.get("current_state"))
-
-        with col_chat:
-            render_section_header("chat", "Update Brief")
-            render_chat(
-                session_key=chat_key,
-                agent_callback=context_agent_callback,
-                placeholder="Tell Dupin what to update...",
-                initial_assistant_message=(
-                    "The case brief is looking good. Want to add more details, "
-                    "update anything, or paste additional documentation?"
-                ),
             )
 
-        st.divider()
+        render_chat(
+            session_key=chat_key,
+            agent_callback=context_agent_callback,
+            placeholder="Tell Dupin about your product, or ask about past decisions...",
+            initial_assistant_message=greeting,
+        )
+
+    st.divider()
 
         # Collapsible chat for updates
         with st.expander("Chat with Dupin to update the brief", expanded=False):
@@ -244,20 +280,31 @@ with tab_leads:
                         if st.button("Accept", key=f"acc_{imp['id']}"):
                             # Apply the lead to the case brief
                             stype = imp.get("suggestion_type", "new_info")
-                            lead_text = f"\n\n[From investigation] {imp.get('title', '')}: {imp.get('description', '')}"
+                            imp_title = imp.get("title", "")
+                            imp_desc = imp.get("description", "")
+                            lead_text = f"\n\n[From investigation] {imp_title}: {imp_desc}"
 
+                            field_updated = ""
                             if stype in ("new_info", "gap"):
-                                # Append to description
                                 current = ctx.get("description", "") or ""
                                 ProductContextDB.update(ctx_id, description=current + lead_text)
+                                field_updated = "Subject"
                             elif stype == "correction":
-                                # Append to current_state as a correction note
                                 current = ctx.get("current_state", "") or ""
                                 ProductContextDB.update(ctx_id, current_state=current + lead_text)
+                                field_updated = "Current State"
                             elif stype == "conflicting_assumption":
-                                # Append to documentation as a flagged assumption
                                 current = ctx.get("documentation", "") or ""
                                 ProductContextDB.update(ctx_id, documentation=current + lead_text)
+                                field_updated = "Evidence & Documentation"
+
+                            # Log to case history
+                            ProductContextDB.add_history_entry(
+                                ctx_id,
+                                f"Accepted lead: {imp_title}",
+                                f"Added to {field_updated}. {imp_desc[:100]}",
+                                source=f"Investigation Finding ({stype})",
+                            )
 
                             ContextImprovementDB.update_status(imp["id"], "accepted")
                             st.rerun()
