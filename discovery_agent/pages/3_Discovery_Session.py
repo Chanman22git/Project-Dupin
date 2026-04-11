@@ -355,9 +355,95 @@ with tab_interviews:
 # ═══════════════════════════════════════════════
 with tab_clues:
     render_tab_guide("Synthesized insights extracted from interviews — pain points, user journeys, expectations, and contradictions.")
-    render_section_header("lightbulb", "Clues & Evidence")
-    render_empty_state(
-        "lightbulb",
-        "Clues will surface here after analysis",
-        "Complete interviews, then Dupin will extract the evidence (Phase 4).",
+
+    # Load existing analysis data
+    from database.models import InsightDB, DiscrepancyDB, UserJourneyDB, ExpectationDB
+    from agents.analysis_agent import analyze_session
+    from components.insight_cards import (
+        render_analysis_summary,
+        render_insight_card,
+        render_discrepancy_card,
+        render_journey_card,
+        render_expectation_card,
     )
+
+    existing_insights = InsightDB.list_by_session(session_id)
+    existing_discrepancies = DiscrepancyDB.list_by_session(session_id)
+    existing_journeys = UserJourneyDB.list_by_session(session_id)
+    existing_expectations = ExpectationDB.list_by_session(session_id)
+
+    completed_count = sum(1 for c in conversations if c.get("status") == "completed")
+    has_results = existing_insights or existing_discrepancies or existing_journeys or existing_expectations
+
+    # Analyze button
+    col_hdr, col_btn = st.columns([3, 1])
+    with col_hdr:
+        render_section_header("lightbulb", "Clues & Evidence")
+    with col_btn:
+        if completed_count > 0:
+            if st.button("Analyze Interviews", type="primary", use_container_width=True,
+                         key="analyze_btn"):
+                with st.status("Dupin is analyzing the transcripts...", expanded=True) as status:
+                    st.write("Reading interview transcripts...")
+                    st.write(f"Analyzing {completed_count} completed interview(s)...")
+                    counts = analyze_session(session_id)
+                    if "error" in counts:
+                        st.error(counts["error"])
+                    else:
+                        st.write("Extracting clues and evidence...")
+                        status.update(label="Analysis complete!", state="complete")
+                        st.rerun()
+
+    if not has_results and completed_count == 0:
+        render_empty_state(
+            "lightbulb",
+            "No interviews to analyze yet",
+            "Complete some interviews first, then click 'Analyze Interviews'.",
+        )
+    elif not has_results and completed_count > 0:
+        render_empty_state(
+            "magnifier",
+            f"{completed_count} interview(s) ready for analysis",
+            "Click 'Analyze Interviews' above to let Dupin extract the clues.",
+        )
+    else:
+        # Show summary
+        render_analysis_summary({
+            "insights": len(existing_insights),
+            "discrepancies": len(existing_discrepancies),
+            "journeys": len(existing_journeys),
+            "expectations": len(existing_expectations),
+        })
+
+        st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
+
+        # Sub-tabs for different types
+        clue_tabs = st.tabs(["Pain Points & Insights", "Journeys", "Expectations", "Contradictions"])
+
+        with clue_tabs[0]:
+            if existing_insights:
+                for ins in existing_insights:
+                    render_insight_card(ins)
+            else:
+                render_empty_state("lightbulb", "No insights extracted yet")
+
+        with clue_tabs[1]:
+            if existing_journeys:
+                for j in existing_journeys:
+                    render_journey_card(j)
+            else:
+                render_empty_state("target", "No journeys mapped yet")
+
+        with clue_tabs[2]:
+            if existing_expectations:
+                for exp in existing_expectations:
+                    render_expectation_card(exp)
+            else:
+                render_empty_state("users", "No expectations captured yet")
+
+        with clue_tabs[3]:
+            if existing_discrepancies:
+                for d in existing_discrepancies:
+                    render_discrepancy_card(d)
+            else:
+                render_empty_state("warning", "No contradictions found")

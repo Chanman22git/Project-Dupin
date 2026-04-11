@@ -164,25 +164,116 @@ INSTRUCTIONS:
     return base_prompt + "\n" + state_instructions
 
 
-ANALYSIS_SYSTEM_PROMPT = """You are an expert user research analyst. Given the following conversations from a discovery session, extract and synthesize:
+ANALYSIS_SYSTEM_PROMPT = """You are Dupin, an expert investigative analyst. Given interview transcripts from a discovery investigation, extract and synthesize findings.
 
-1. USER JOURNEYS: Identify the steps users go through. Note:
-   - Multiple users may describe different paths for the same journey
-   - Some users may only know part of the journey
-   - Don't merge conflicting paths — document them as alternatives
-   - Mark confidence levels based on how many users confirmed each path
+Analyze ALL interviews and return a JSON object with exactly these keys:
 
-2. PAIN POINTS: Group by journey stage. Include severity based on user language.
+{
+  "insights": [
+    {
+      "type": "pain_point" | "expectation" | "workflow" | "feature_request" | "behavior_pattern" | "user_journey_step",
+      "title": "Short descriptive title",
+      "description": "Detailed finding",
+      "evidence": [{"conversation_id": "...", "quote": "relevant quote from transcript"}],
+      "persona_tags": ["persona names this applies to"],
+      "journey_stage": "which stage of the user journey (or null)",
+      "priority": "high" | "medium" | "low"
+    }
+  ],
+  "discrepancies": [
+    {
+      "type": "user_vs_user" | "user_vs_product",
+      "description": "What the contradiction is about",
+      "side_a": {"source": "who/what", "claim": "what they said"},
+      "side_b": {"source": "who/what", "claim": "what they said differently"},
+      "related_conversation_ids": ["conversation IDs involved"]
+    }
+  ],
+  "journeys": [
+    {
+      "journey_name": "Name of the journey/workflow",
+      "persona": "Which persona follows this journey",
+      "stages": [
+        {
+          "stage_name": "Step name",
+          "description": "What happens",
+          "actions": ["specific actions taken"],
+          "pain_points": ["frustrations at this stage"],
+          "emotions": ["how user feels"],
+          "touchpoints": ["tools/systems involved"]
+        }
+      ],
+      "confidence": "high" | "medium" | "low",
+      "is_partial": true | false,
+      "source_conversations": ["conversation IDs"]
+    }
+  ],
+  "expectations": [
+    {
+      "description": "What the user wants/expects",
+      "persona_tags": ["persona names"],
+      "journey_stage": "relevant stage or null",
+      "priority": "critical" | "high" | "medium" | "low"
+    }
+  ],
+  "context_improvements": [
+    {
+      "suggestion_type": "new_info" | "correction" | "gap" | "conflicting_assumption",
+      "title": "Short title",
+      "description": "What should be updated in the case brief and why",
+      "evidence": [{"quote": "supporting evidence from transcripts"}]
+    }
+  ]
+}
 
-3. EXPECTATIONS: What do users want? Tag by persona, journey stage, priority.
+RULES:
+1. Every insight must have evidence — direct quotes from the transcripts.
+2. Don't merge conflicting user journeys — document them as separate journeys.
+3. Mark journeys as partial if the user only knew part of the flow.
+4. Confidence is based on how many users confirmed the same path.
+5. For discrepancies, clearly state both sides without taking sides.
+6. Context improvements should flag things the PM's case brief got wrong or missed.
+7. Be thorough but precise — quality over quantity."""
 
-4. DISCREPANCIES:
-   - user_vs_user: Where different users describe the same thing differently
-   - user_vs_product: Where user descriptions conflict with the product context
 
-5. CONTEXT IMPROVEMENTS: Based on what you learned, what should the PM update in their product context?
+def build_analysis_prompt(product_context, session, conversations):
+    """Build the full analysis prompt with context and transcripts."""
+    ctx_section = f"""
+CASE BRIEF:
+Product: {product_context.get('name', 'Unknown')}
+Description: {product_context.get('description', 'N/A')}
+Documentation: {product_context.get('documentation', 'N/A')}
+Current State: {product_context.get('current_state', 'N/A')}
 
-Respond with structured JSON matching the insight/discrepancy/journey schemas."""
+INVESTIGATION:
+Name: {session.get('name', 'Unknown')}
+Objective: {session.get('objective', 'N/A')}
+Scope: {session.get('scope', 'N/A')}
+"""
+    transcripts = _format_transcripts(conversations)
+    return ANALYSIS_SYSTEM_PROMPT + "\n" + ctx_section + "\n" + transcripts
+
+
+def _format_transcripts(conversations):
+    """Format all conversations into a readable string for analysis."""
+    parts = []
+    for conv in conversations:
+        messages = conv.get("messages", [])
+        if not messages:
+            continue
+        conv_id = conv.get("id", "unknown")
+        parts.append(f"\n--- INTERVIEW {conv_id[:8]} ---")
+        for msg in messages:
+            role = "DUPIN" if msg.get("role") == "assistant" else "WITNESS"
+            content = msg.get("content", "")
+            # Strip state markers
+            import re
+            content = re.sub(r'\[STATE:\w+\]\s*$', '', content).strip()
+            content = content.replace("[CONVERSATION_COMPLETE]", "").strip()
+            if content:
+                parts.append(f"{role}: {content}")
+        parts.append("--- END INTERVIEW ---\n")
+    return "\n".join(parts)
 
 
 # Need to import json for the f-string in build_user_agent_prompt
