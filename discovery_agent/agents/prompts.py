@@ -110,6 +110,44 @@ IMPORTANT: The state marker must be the very last thing in your response. The us
 NOT see it — it is stripped before display. Do NOT explain or reference the marker."""
 
 
+def _build_clarification_instructions(clarification_mode, accumulated):
+    """Build clarification-mode-specific instructions for discrepancy handling."""
+    if not accumulated:
+        return ""
+
+    # Find discrepancies in accumulated insights
+    discrepancies = [a for a in accumulated if a.get("type") == "discrepancy"]
+    has_prior_insights = len(accumulated) > 0
+
+    if clarification_mode == "realtime" and has_prior_insights:
+        return """REAL-TIME CLARIFICATION (mode: realtime):
+You have accumulated insights from prior interviews. When this user says something
+that contradicts a prior finding, gently probe using NEUTRAL framing:
+- "Interesting — some users have described this differently. They mentioned [X]. How does that compare to your experience?"
+- "I've heard different perspectives on this. Some say [X], while others say [Y]. What's your take?"
+NEVER reveal specific user identities or direct quotes. Frame as "some users" or "others".
+NEVER take sides — you're gathering perspectives, not validating them.
+Probe actively but naturally — don't force contradictions into every response."""
+
+    elif clarification_mode == "balanced" and has_prior_insights:
+        return """SELECTIVE CLARIFICATION (mode: balanced):
+You have accumulated insights from prior interviews. Only probe SIGNIFICANT contradictions:
+- Different workflow steps or processes described for the same task
+- Conflicting pain points (one user loves it, another hates it)
+- Contradictory expectations about what the product should do
+For minor differences (wording, emphasis, terminology), just note them internally.
+When probing, use neutral framing: "I've heard different perspectives on this..."
+NEVER reveal specific user identities."""
+
+    elif clarification_mode == "flagged":
+        return """INTERNAL FLAGGING (mode: flagged):
+Do NOT bring up contradictions or prior insights during the conversation.
+Track any contradictions internally — they will be surfaced in the analysis.
+Focus entirely on this user's own experience without cross-referencing."""
+
+    return ""
+
+
 def build_user_agent_prompt(product_context, session, link,
                             conversation_state="GREETING",
                             user_message_count=0):
@@ -147,15 +185,18 @@ Max questions: {max_questions or 'no limit, but wrap up naturally after 15-20 ex
 ACCUMULATED INSIGHTS (for question refinement, NOT for biasing):
 {json.dumps(accumulated, indent=2) if accumulated else 'None yet.'}
 
+{_build_clarification_instructions(behavior.get('clarification_mode', 'balanced'), accumulated)}
+
 INSTRUCTIONS:
 1. Start fresh with each user. Don't assume anything.
 2. Begin with open-ended questions about their role and what they do.
 3. Gradually explore their workflows, use cases, and pain points.
 4. Ask about expectations for the product/feature.
 5. If they mention something that conflicts with the product context, note it internally.
-6. Keep the conversation natural and bounded.
-7. When wrapping up, summarize what you learned and ask the user to confirm.
-8. Throughout, track: journey steps, pain points, expectations, discrepancies, workflows."""
+6. Use accumulated insights to identify GAPS — things not yet explored or with conflicting accounts. Ask about these naturally without leading the user.
+7. Keep the conversation natural and bounded.
+8. When wrapping up, summarize what you learned and ask the user to confirm.
+9. Throughout, track: journey steps, pain points, expectations, discrepancies, workflows."""
 
     state_instructions = build_state_instructions(
         conversation_state, user_message_count, max_questions

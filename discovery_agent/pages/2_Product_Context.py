@@ -91,7 +91,11 @@ with tab_overview:
             st.session_state[chat_key] = saved
 
         def context_agent_callback(messages):
-            raw_response = get_context_agent_response(messages, ctx)
+            from agents.base import AgentError
+            try:
+                raw_response = get_context_agent_response(messages, ctx)
+            except (AgentError, Exception) as e:
+                return f"I'm having a brief connection issue. Please try again. ({type(e).__name__})"
             should_save, clean_response = detect_save(raw_response, SAVE_MARKER)
 
             if should_save:
@@ -204,6 +208,23 @@ with tab_leads:
                 with col2:
                     if imp["status"] == "pending":
                         if st.button("Accept", key=f"acc_{imp['id']}"):
+                            # Apply the lead to the case brief
+                            stype = imp.get("suggestion_type", "new_info")
+                            lead_text = f"\n\n[From investigation] {imp.get('title', '')}: {imp.get('description', '')}"
+
+                            if stype in ("new_info", "gap"):
+                                # Append to description
+                                current = ctx.get("description", "") or ""
+                                ProductContextDB.update(ctx_id, description=current + lead_text)
+                            elif stype == "correction":
+                                # Append to current_state as a correction note
+                                current = ctx.get("current_state", "") or ""
+                                ProductContextDB.update(ctx_id, current_state=current + lead_text)
+                            elif stype == "conflicting_assumption":
+                                # Append to documentation as a flagged assumption
+                                current = ctx.get("documentation", "") or ""
+                                ProductContextDB.update(ctx_id, documentation=current + lead_text)
+
                             ContextImprovementDB.update_status(imp["id"], "accepted")
                             st.rerun()
                         if st.button("Dismiss", key=f"rej_{imp['id']}"):

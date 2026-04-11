@@ -117,4 +117,31 @@ def analyze_session(session_id):
         )
         counts["context_improvements"] += 1
 
+    # Accumulate insights for future interview refinement
+    accumulated = []
+    for ins in results.get("insights", []):
+        accumulated.append({
+            "type": ins.get("type", ""),
+            "title": ins.get("title", ""),
+            "summary": ins.get("description", "")[:200],
+        })
+    for disc in results.get("discrepancies", []):
+        accumulated.append({
+            "type": "discrepancy",
+            "description": disc.get("description", "")[:200],
+            "sides": f"{disc.get('side_a', {}).get('claim', '')} vs {disc.get('side_b', {}).get('claim', '')}",
+        })
+    for exp in results.get("expectations", []):
+        accumulated.append({
+            "type": "expectation",
+            "description": exp.get("description", "")[:200],
+            "priority": exp.get("priority", "medium"),
+        })
+
+    # Merge with any existing accumulated insights
+    existing = session.get("accumulated_insights", [])
+    if isinstance(existing, list):
+        accumulated = existing + accumulated
+    DiscoverySessionDB.update(session_id, accumulated_insights=accumulated)
+
     return counts

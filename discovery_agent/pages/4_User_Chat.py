@@ -200,6 +200,8 @@ else:
 
     # Agent callback
     def user_agent_callback(messages):
+        from agents.base import AgentError
+
         conv_id = st.session_state[conv_id_key]
         current_state = st.session_state.get(state_key, "GREETING")
 
@@ -208,13 +210,16 @@ else:
         ConversationDB.add_message(conv_id, "user", user_msg["content"])
 
         # Get agent response
-        clean_response, new_state, is_complete = get_user_agent_response(
-            messages=messages,
-            product_context=product_ctx or {},
-            session=session,
-            link=link,
-            conversation_state=current_state,
-        )
+        try:
+            clean_response, new_state, is_complete = get_user_agent_response(
+                messages=messages,
+                product_context=product_ctx or {},
+                session=session,
+                link=link,
+                conversation_state=current_state,
+            )
+        except (AgentError, Exception) as e:
+            return "I'm having a brief connection issue. Could you try sending that again?"
 
         # Persist assistant response WITH state marker to DB for state recovery
         db_content = f"{clean_response}\n[STATE:{new_state}]"

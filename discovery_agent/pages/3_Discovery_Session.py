@@ -194,7 +194,11 @@ with tab_config:
             st.session_state[chat_key] = saved
 
         def session_agent_callback(messages):
-            raw = get_session_agent_response(messages, session, product_ctx or {})
+            from agents.base import AgentError
+            try:
+                raw = get_session_agent_response(messages, session, product_ctx or {})
+            except (AgentError, Exception) as e:
+                return f"I'm having a brief connection issue. Please try again. ({type(e).__name__})"
             should_save, clean = detect_save(raw, SESSION_SAVE_MARKER)
 
             if should_save:
