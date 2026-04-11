@@ -14,14 +14,10 @@ def render_chat(
     initial_assistant_message: str = None,
     enable_file_upload: bool = True,
 ):
-    """Render a reusable chat interface with optional file upload.
+    """Render a chat interface with inline file attachment.
 
-    Args:
-        session_key: st.session_state key where message history (list of dicts) is stored.
-        agent_callback: Callable that takes list[dict] messages and returns str response.
-        placeholder: Placeholder text for the chat input.
-        initial_assistant_message: Optional greeting shown if history is empty.
-        enable_file_upload: Whether to show the file upload button above the chat.
+    Files are parsed and included as context in the user's next message.
+    The file content is not stored — only used as conversation context.
     """
     # Initialize with greeting if history is empty
     if session_key in st.session_state and not st.session_state[session_key]:
@@ -35,62 +31,89 @@ def render_chat(
     # Render existing messages
     for msg in messages:
         with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+            # Show a cleaner version for file messages
+            content = msg.get("content", "")
+            if content.startswith("[Attached:"):
+                # Show just the attachment label, not the full content
+                lines = content.split("\n", 3)
+                st.markdown(lines[0])
+                if len(lines) > 2:
+                    with st.expander("View attached content", expanded=False):
+                        st.markdown(lines[-1][:500] + ("..." if len(lines[-1]) > 500 else ""))
+            else:
+                st.markdown(content)
 
-    # File upload area
+    # ── Input area: file attach + text input side by side ──
     if enable_file_upload:
+        # Pending file in session state
+        pending_file_key = f"pending_file_{session_key}"
         upload_key = f"file_upload_{session_key}"
+
+        # File uploader — small, inline
         uploaded_file = st.file_uploader(
-            "Attach a file",
+            "📎 Attach file",
             type=["md", "txt", "pdf", "docx", "doc", "csv", "json", "yaml", "yml"],
             key=upload_key,
             label_visibility="collapsed",
-            help="Attach .md, .txt, .pdf, .docx, .csv, .json, or .yaml files",
+            help="Attach a file to include as context in your next message",
         )
 
+        # Parse file when uploaded
         if uploaded_file is not None:
-            # Check if we already processed this file (avoid re-processing on rerun)
-            processed_key = f"processed_file_{session_key}"
             file_id = f"{uploaded_file.name}_{uploaded_file.size}"
-            if st.session_state.get(processed_key) != file_id:
+            if st.session_state.get(f"parsed_id_{session_key}") != file_id:
                 from utils.file_parser import parse_uploaded_file
                 file_content = parse_uploaded_file(uploaded_file)
-
                 if file_content and not file_content.startswith("["):
-                    # Truncate very large files
                     if len(file_content) > 15000:
-                        file_content = file_content[:15000] + "\n\n[... truncated, file too large to include fully ...]"
-
-                    # Add as user message with file context
-                    file_msg = (
-                        f"I'm attaching a file: **{uploaded_file.name}**\n\n"
-                        f"---\n{file_content}\n---"
-                    )
-                    with st.chat_message("user"):
-                        st.markdown(f"Attached: **{uploaded_file.name}** ({len(file_content):,} chars)")
-
-                    messages.append({"role": "user", "content": file_msg, "timestamp": _now()})
-                    st.session_state[session_key] = messages
-                    st.session_state[processed_key] = file_id
-
-                    # Get agent response
-                    with st.chat_message("assistant"):
-                        with st.spinner("Reading file..."):
-                            response = agent_callback(messages)
-
-                    messages.append({"role": "assistant", "content": response, "timestamp": _now()})
-                    st.session_state[session_key] = messages
-                    st.rerun()
+                        file_content = file_content[:15000] + "\n\n[... truncated ...]"
+                    st.session_state[pending_file_key] = {
+                        "name": uploaded_file.name,
+                        "content": file_content,
+                    }
+                    st.session_state[f"parsed_id_{session_key}"] = file_id
                 elif file_content.startswith("["):
                     st.warning(file_content)
-                    st.session_state[processed_key] = file_id
 
-    # Handle text input
+        # Show pending file indicator
+        pending = st.session_state.get(pending_file_key)
+        if pending:
+            st.markdown(
+                f'<div style="background:#E8E3D8;border-radius:6px;padding:0.4rem 0.75rem;'
+                f'margin-bottom:0.5rem;font-size:0.8rem;color:#3D3D35;display:inline-flex;'
+                f'align-items:center;gap:0.4rem;">'
+                f'📎 <strong>{pending["name"]}</strong> attached '
+                f'<span style="color:#8C8878;">({len(pending["content"]):,} chars)</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+    # Chat input
     if user_input := st.chat_input(placeholder, key=f"chat_input_{session_key}"):
-        with st.chat_message("user"):
-            st.markdown(user_input)
+        # Build the full message — text + any attached file
+        pending = st.session_state.get(f"pending_file_{session_key}") if enable_file_upload else None
 
-        messages.append({"role": "user", "content": user_input, "timestamp": _now()})
+        if pending:
+            full_content = (
+                f"[Attached: **{pending['name']}**]\n\n"
+                f"{user_input}\n\n"
+                f"--- File Content: {pending['name']} ---\n"
+                f"{pending['content']}\n"
+                f"--- End File ---"
+            )
+            display_content = f"📎 **{pending['name']}** — {user_input}"
+            # Clear the pending file
+            del st.session_state[f"pending_file_{session_key}"]
+            if f"parsed_id_{session_key}" in st.session_state:
+                del st.session_state[f"parsed_id_{session_key}"]
+        else:
+            full_content = user_input
+            display_content = user_input
+
+        with st.chat_message("user"):
+            st.markdown(display_content)
+
+        messages.append({"role": "user", "content": full_content, "timestamp": _now()})
         st.session_state[session_key] = messages
 
         with st.chat_message("assistant"):
