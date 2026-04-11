@@ -25,17 +25,17 @@ if os.path.exists(logo_path):
     st.sidebar.image(logo_path, width=160)
     st.sidebar.markdown(
         '<p style="text-align:center; color:#8C8878; font-size:0.75rem; '
-        'letter-spacing:0.12em; text-transform:uppercase; margin-top:-0.5rem;">Discovery Agent</p>',
+        'letter-spacing:0.12em; text-transform:uppercase; margin-top:-0.5rem;">Case Files</p>',
         unsafe_allow_html=True,
     )
     st.sidebar.divider()
 
-# Main landing — redirect to Home page
-home = st.Page("pages/1_Home.py", title="Home", icon=":material/home:", default=True)
-product_context = st.Page("pages/2_Product_Context.py", title="Product Context", icon=":material/description:")
-discovery_session = st.Page("pages/3_Discovery_Session.py", title="Discovery Session", icon=":material/search:")
-user_chat = st.Page("pages/4_User_Chat.py", title="User Chat", icon=":material/chat:")
-reports = st.Page("pages/5_Reports.py", title="Reports", icon=":material/assessment:")
+# Pages
+home = st.Page("pages/1_Home.py", title="Case Board", icon=":material/home:", default=True)
+case_file = st.Page("pages/2_Product_Context.py", title="Case File", icon=":material/description:")
+investigation = st.Page("pages/3_Discovery_Session.py", title="Investigation", icon=":material/search:")
+interview = st.Page("pages/4_User_Chat.py", title="Interview", icon=":material/chat:")
+reports = st.Page("pages/5_Reports.py", title="Dossier", icon=":material/assessment:")
 
-pg = st.navigation([home, product_context, discovery_session, user_chat, reports])
+pg = st.navigation([home, case_file, investigation, interview, reports])
 pg.run()

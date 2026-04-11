@@ -2,7 +2,6 @@ from __future__ import annotations
 import streamlit as st
 from components.styles import inject_custom_css
 from components.graphics import (
-    render_hero_banner,
     render_feature_preview_card,
     render_section_header,
     icon,
@@ -35,9 +34,9 @@ st.markdown(f"""
         <div style="margin-bottom:1rem; opacity:0.3;">
             {icon("chart", 48, "#C4823A")}
         </div>
-        <h1 style="margin:0 !important; font-size:2rem !important;">Reports</h1>
+        <h1 style="margin:0 !important; font-size:2rem !important;">The Dossier</h1>
         <p style="color:#8C8878; margin:0.75rem auto 0; max-width:450px; line-height:1.5;">
-            Comprehensive research reports with synthesized findings across all your discovery sessions.
+            Compiled findings, synthesized evidence, and investigative conclusions across all your cases.
         </p>
         <div style="
             display:inline-block;
@@ -55,26 +54,26 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ── Feature Preview Cards ──
-render_section_header("layers", "What Reports Will Include")
+render_section_header("layers", "What the Dossier Will Contain")
 
 col1, col2, col3 = st.columns(3)
 with col1:
     render_feature_preview_card(
         "document",
-        "Executive Summary",
-        "High-level overview of findings, key themes, and actionable recommendations."
+        "Case Summary",
+        "High-level findings, key themes, and actionable recommendations from the investigation."
     )
 with col2:
     render_feature_preview_card(
         "users",
-        "User Journeys",
+        "Witness Journeys",
         "Visual journey maps with multiple paths, confidence levels, and pain points."
     )
 with col3:
     render_feature_preview_card(
         "warning",
-        "Discrepancies",
-        "Conflicts between users or against product context, with evidence from both sides."
+        "Contradictions",
+        "Conflicting testimony between witnesses, with evidence from both sides."
     )
 
 st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
@@ -84,17 +83,17 @@ with col4:
     render_feature_preview_card(
         "lightbulb",
         "Expectations",
-        "User expectations tagged by persona, journey stage, and priority level."
+        "What witnesses want, tagged by persona, journey stage, and priority level."
     )
 with col5:
     render_feature_preview_card(
         "target",
         "Pain Points",
-        "Grouped by journey stage with severity ratings and supporting quotes."
+        "Frustrations grouped by journey stage with severity ratings and supporting quotes."
     )
 with col6:
     render_feature_preview_card(
         "chart",
-        "Cross-Session Trends",
-        "Aggregated insights, evolving journeys, and patterns across multiple sessions."
+        "Cross-Case Patterns",
+        "Aggregated clues, evolving journeys, and patterns across multiple investigations."
     )

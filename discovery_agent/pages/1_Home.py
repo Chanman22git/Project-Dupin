@@ -4,19 +4,14 @@ import streamlit as st
 from database.models import ProductContextDB, DiscoverySessionDB, ConversationDB
 from components.styles import inject_custom_css
 from components.graphics import (
-    render_hero_banner,
     render_metric_card,
     render_empty_state,
-    render_status_pill,
     icon,
 )
 
 inject_custom_css()
 
-# ── Hero Banner with Logo ──
-_APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-logo_path = os.path.join(_APP_DIR, "assets", "logo.png")
-
+# ── Hero Banner ──
 st.markdown(f"""
 <div style="
     background: linear-gradient(135deg, #E8E3D8 0%, #F0EDE6 50%, #E8E3D8 100%);
@@ -37,65 +32,67 @@ st.markdown(f"""
         </svg>
     </div>
     <div style="position: relative; z-index: 1;">
-        <p style="color: #8C8878 !important; font-size: 1.05rem; margin: 0; max-width: 500px; line-height: 1.75;">
-            AI-powered user research platform. Deploy conversational agents to interview users,
-            uncover journeys, and synthesize insights across conversations.
+        <h4 style="margin:0 0 0.5rem 0 !important; font-size:1.1rem !important;">
+            "The most important thing is not to stop questioning."
+        </h4>
+        <p style="color: #8C8878 !important; font-size: 1rem; margin: 0; max-width: 520px; line-height: 1.75;">
+            Open a case, launch investigations, conduct interviews.
+            Dupin's AI agents uncover what your users really think.
         </p>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 # ── Metrics Row ──
-contexts = ProductContextDB.list_all()
-total_contexts = len(contexts)
+cases = ProductContextDB.list_all()
+total_cases = len(cases)
 
-# Count all sessions and conversations across contexts
-total_sessions = 0
-total_conversations = 0
-for ctx in contexts:
-    session_count = ProductContextDB.count_sessions(ctx["id"])
-    total_sessions += session_count
-    sessions = DiscoverySessionDB.list_by_context(ctx["id"])
-    for s in sessions:
-        convs = ConversationDB.list_by_session(s["id"])
-        total_conversations += len(convs)
+total_investigations = 0
+total_interviews = 0
+for c in cases:
+    inv_count = ProductContextDB.count_sessions(c["id"])
+    total_investigations += inv_count
+    investigations = DiscoverySessionDB.list_by_context(c["id"])
+    for inv in investigations:
+        interviews = ConversationDB.list_by_session(inv["id"])
+        total_interviews += len(interviews)
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    render_metric_card("folder", "Product Contexts", total_contexts, "#C4823A")
+    render_metric_card("folder", "Open Cases", total_cases, "#C4823A")
 with col2:
-    render_metric_card("target", "Discovery Sessions", total_sessions, "#E8B87A")
+    render_metric_card("magnifier", "Investigations", total_investigations, "#E8B87A")
 with col3:
-    render_metric_card("chat", "Conversations", total_conversations, "#7A9E7E")
+    render_metric_card("chat", "Interviews", total_interviews, "#5C7A6E")
 with col4:
-    render_metric_card("lightbulb", "Insights", 0, "#D4A056")
+    render_metric_card("lightbulb", "Clues", 0, "#8C8878")
 
 st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
 
 # ── Create Button ──
 col_left, col_right = st.columns([3, 1])
 with col_right:
-    if st.button("+ New Product Context", type="primary", use_container_width=True):
-        new_ctx = ProductContextDB.create(name="Untitled Product Context")
+    if st.button("+ Open New Case", type="primary", use_container_width=True):
+        new_ctx = ProductContextDB.create(name="Untitled Case")
         st.session_state["selected_context_id"] = new_ctx["id"]
         st.switch_page("pages/2_Product_Context.py")
 
-# ── Context Cards ──
-if not contexts:
+# ── Case Cards ──
+if not cases:
     render_empty_state(
         "folder",
-        "No product contexts yet",
-        "Create your first product context to start conducting user research."
+        "No cases on the board yet",
+        "Open your first case to start investigating your product."
     )
 else:
-    for ctx in contexts:
-        session_count = ProductContextDB.count_sessions(ctx["id"])
-        desc = ctx.get("description", "")
+    for c in cases:
+        inv_count = ProductContextDB.count_sessions(c["id"])
+        desc = c.get("description", "")
 
         with st.container(border=True):
             col_main, col_meta, col_action = st.columns([3, 2, 1])
             with col_main:
-                st.markdown(f"#### {ctx['name']}")
+                st.markdown(f"#### {c['name']}")
                 if desc:
                     truncated = desc[:180] + ("..." if len(desc) > 180 else "")
                     st.markdown(
@@ -112,12 +109,12 @@ else:
                     f"""
                     <div style="display:flex; gap:1.5rem; margin-top:0.5rem;">
                         <div style="text-align:center;">
-                            <div style="font-size:1.4rem; font-weight:700; color:#C4823A;">{session_count}</div>
-                            <div style="font-size:0.75rem; color:#B8B4A8; text-transform:uppercase; letter-spacing:0.05em;">Sessions</div>
+                            <div style="font-size:1.4rem; font-weight:700; color:#C4823A;">{inv_count}</div>
+                            <div style="font-size:0.75rem; color:#B8B4A8; text-transform:uppercase; letter-spacing:0.05em;">Investigations</div>
                         </div>
                         <div style="text-align:center;">
                             <div style="font-size:0.8rem; color:#B8B4A8; margin-top:0.5rem;">{icon("clock", 14, "#B8B4A8")} Updated</div>
-                            <div style="font-size:0.85rem; color:#8C8878;">{ctx['updated_at'][:10]}</div>
+                            <div style="font-size:0.85rem; color:#8C8878;">{c['updated_at'][:10]}</div>
                         </div>
                     </div>
                     """,
@@ -125,9 +122,9 @@ else:
                 )
             with col_action:
                 st.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
-                if st.button("Open", key=f"open_{ctx['id']}", use_container_width=True):
-                    st.session_state["selected_context_id"] = ctx["id"]
+                if st.button("Open Case", key=f"open_{c['id']}", use_container_width=True):
+                    st.session_state["selected_context_id"] = c["id"]
                     st.switch_page("pages/2_Product_Context.py")
-                if st.button("Delete", key=f"del_{ctx['id']}", use_container_width=True):
-                    ProductContextDB.delete(ctx["id"])
+                if st.button("Close Case", key=f"del_{c['id']}", use_container_width=True):
+                    ProductContextDB.delete(c["id"])
                     st.rerun()

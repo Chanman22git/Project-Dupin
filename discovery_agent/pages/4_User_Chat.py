@@ -118,12 +118,12 @@ st.markdown(f"""
     <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.5rem;">
         {icon("chat", 28, "#C4823A")}
         <h2 style="margin:0 !important; padding:0 !important; font-size:1.5rem !important;">
-            Discovery Conversation
+            Interview Session
         </h2>
     </div>
     <p style="color:#8C8878; margin:0; font-size:0.95rem; line-height:1.5;">
-        Welcome, <strong>{link['user_name']}</strong>. We'd love to learn about your experience
-        with {product_name}. This conversation is confidential and will help us improve the product.
+        Welcome, <strong>{link['user_name']}</strong>. Dupin would like to learn about your experience
+        with {product_name}. This conversation is confidential and will help the team improve the product.
     </p>
 </div>
 """, unsafe_allow_html=True)
