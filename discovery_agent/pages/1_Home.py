@@ -76,11 +76,17 @@ with col4:
 
 st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
 
-# ── Create Button ──
+# ── Create New Case ──
 col_left, col_right = st.columns([3, 1])
+with col_left:
+    new_case_name = st.text_input(
+        "New case name", placeholder="e.g., Onboarding Redesign, Mobile App v3, Checkout Flow",
+        label_visibility="collapsed", key="new_case_name",
+    )
 with col_right:
     if st.button("+ Open New Case", type="primary", use_container_width=True):
-        new_ctx = ProductContextDB.create(name="Untitled Case")
+        case_name = new_case_name.strip() if new_case_name else "Untitled Case"
+        new_ctx = ProductContextDB.create(name=case_name)
         st.session_state["selected_context_id"] = new_ctx["id"]
         st.switch_page("pages/2_Product_Context.py")
 
@@ -108,7 +114,7 @@ else:
                     )
                 else:
                     st.markdown(
-                        '<p style="color:#B8B4A8; font-size:0.9rem; font-style:italic;">No description yet</p>',
+                        '<p style="color:#B8B4A8; font-size:0.9rem; font-style:italic;">Open the case and chat with Dupin to build the brief</p>',
                         unsafe_allow_html=True,
                     )
             with col_meta:
