@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 import streamlit as st
 from database.models import ProductContextDB, DiscoverySessionDB, ConversationDB
 from components.styles import inject_custom_css
@@ -12,12 +13,37 @@ from components.graphics import (
 
 inject_custom_css()
 
-# ── Hero Banner ──
-render_hero_banner(
-    "Discovery Agent",
-    "AI-powered user research platform. Deploy conversational agents to interview users, "
-    "uncover journeys, and synthesize insights across conversations."
-)
+# ── Hero Banner with Logo ──
+_APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+logo_path = os.path.join(_APP_DIR, "assets", "logo.png")
+
+st.markdown(f"""
+<div style="
+    background: linear-gradient(135deg, #E8E3D8 0%, #F0EDE6 50%, #E8E3D8 100%);
+    border-radius: 16px;
+    padding: 2.5rem 2.5rem 2rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #D0CAC0;
+">
+    <div style="position: absolute; right: 2rem; top: 50%; transform: translateY(-50%); opacity: 0.06;">
+        <svg width="180" height="180" viewBox="0 0 180 180" fill="none">
+            <circle cx="90" cy="90" r="80" stroke="#3D3D35" stroke-width="2"/>
+            <circle cx="90" cy="90" r="55" stroke="#3D3D35" stroke-width="1.5"/>
+            <circle cx="90" cy="90" r="30" stroke="#3D3D35" stroke-width="1"/>
+            <line x1="90" y1="10" x2="90" y2="170" stroke="#3D3D35" stroke-width="0.5"/>
+            <line x1="10" y1="90" x2="170" y2="90" stroke="#3D3D35" stroke-width="0.5"/>
+        </svg>
+    </div>
+    <div style="position: relative; z-index: 1;">
+        <p style="color: #8C8878 !important; font-size: 1.05rem; margin: 0; max-width: 500px; line-height: 1.75;">
+            AI-powered user research platform. Deploy conversational agents to interview users,
+            uncover journeys, and synthesize insights across conversations.
+        </p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # ── Metrics Row ──
 contexts = ProductContextDB.list_all()
