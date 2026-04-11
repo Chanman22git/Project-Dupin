@@ -1,7 +1,20 @@
 from __future__ import annotations
+import json
 import streamlit as st
 from datetime import datetime, timezone
-from database.models import UserSessionLinkDB, ConversationDB, DiscoverySessionDB, ProductContextDB
+from database.models import (
+    UserSessionLinkDB,
+    ConversationDB,
+    DiscoverySessionDB,
+    ProductContextDB,
+)
+from agents.user_agent import (
+    get_user_agent_response,
+    extract_summary_from_response,
+    infer_state_from_messages,
+    clean_messages_for_display,
+)
+from components.chat_ui import render_chat
 from components.styles import inject_custom_css
 from components.graphics import icon
 
@@ -16,7 +29,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Get token from query params
+# ── Token Validation ──
 token = st.query_params.get("token")
 
 if not token:
@@ -33,7 +46,6 @@ if not token:
     """, unsafe_allow_html=True)
     st.stop()
 
-# Validate token
 link = UserSessionLinkDB.get_by_token(token)
 
 if not link:
@@ -50,7 +62,7 @@ if not link:
     """, unsafe_allow_html=True)
     st.stop()
 
-# Check expiry
+# ── Expiry Check ──
 if link["status"] == "expired" or (
     link["expires_at"]
     and datetime.fromisoformat(link["expires_at"]) < datetime.now(timezone.utc)
@@ -70,7 +82,7 @@ if link["status"] == "expired" or (
     """, unsafe_allow_html=True)
     st.stop()
 
-# Check if completed
+# ── Completion Check ──
 if link["status"] == "completed":
     st.markdown(f"""
     <div style="text-align:center; padding:4rem 2rem;">
@@ -85,7 +97,7 @@ if link["status"] == "completed":
     """, unsafe_allow_html=True)
     st.stop()
 
-# Load session context
+# ── Load Session Context ──
 session = DiscoverySessionDB.get(link["discovery_session_id"])
 if not session:
     st.error("Session configuration not found.")
@@ -116,4 +128,114 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-st.info("The conversational agent will be implemented in Phase 3. For now, this is a placeholder.")
+# ═══════════════════════════════════════════════
+# Conversation Init / Resume
+# ═══════════════════════════════════════════════
+link_id = link["id"]
+state_key = f"user_conversation_state_{link_id}"
+conv_id_key = f"user_conversation_id_{link_id}"
+chat_key = f"user_chat_messages_{link_id}"
+complete_key = f"user_chat_complete_{link_id}"
+
+if conv_id_key not in st.session_state:
+    existing_conv = ConversationDB.get_by_link(link_id)
+
+    if existing_conv and existing_conv["status"] == "in_progress":
+        # Resume existing conversation
+        st.session_state[conv_id_key] = existing_conv["id"]
+        saved_messages = existing_conv.get("messages", [])
+        if isinstance(saved_messages, str):
+            saved_messages = json.loads(saved_messages) if saved_messages else []
+        st.session_state[state_key] = infer_state_from_messages(saved_messages)
+        st.session_state[chat_key] = clean_messages_for_display(saved_messages)
+
+    elif existing_conv and existing_conv["status"] == "completed":
+        st.session_state[complete_key] = True
+
+    else:
+        # Create new conversation
+        new_conv = ConversationDB.create(link_id, link["discovery_session_id"])
+        st.session_state[conv_id_key] = new_conv["id"]
+        st.session_state[chat_key] = []
+        st.session_state[state_key] = "GREETING"
+
+# ═══════════════════════════════════════════════
+# Render Chat or Completion
+# ═══════════════════════════════════════════════
+if st.session_state.get(complete_key):
+    st.markdown(f"""
+    <div style="text-align:center; padding:3rem 2rem;">
+        <div style="opacity:0.15; margin-bottom:1.5rem;">
+            {icon("check", 80, "#7A9E7E")}
+        </div>
+        <h2 style="color:#3D3529;">Conversation Complete</h2>
+        <p style="color:#A89F91; max-width:400px; margin:0 auto; line-height:1.6;">
+            Thank you for your participation! Your feedback has been recorded.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+else:
+    # Build greeting
+    greeting = (
+        f"Hi {link['user_name']}! I'm here to learn about your experience with "
+        f"{product_name}. This conversation is confidential and will help the team "
+        f"improve the product.\n\n"
+        f"Let's start \u2014 could you tell me a bit about your role and how you "
+        f"interact with {product_name}?"
+    )
+
+    # Save greeting to DB on first load
+    greeting_saved_key = f"greeting_saved_{link_id}"
+    if not st.session_state.get(greeting_saved_key) and conv_id_key in st.session_state:
+        # Only save if conversation is new (no messages yet)
+        conv = ConversationDB.get(st.session_state[conv_id_key])
+        if conv and not conv.get("messages"):
+            ConversationDB.add_message(
+                st.session_state[conv_id_key],
+                "assistant",
+                f"{greeting}\n[STATE:GREETING]",
+            )
+        st.session_state[greeting_saved_key] = True
+
+    # Agent callback
+    def user_agent_callback(messages):
+        conv_id = st.session_state[conv_id_key]
+        current_state = st.session_state.get(state_key, "GREETING")
+
+        # Persist the user's message to DB
+        user_msg = messages[-1]
+        ConversationDB.add_message(conv_id, "user", user_msg["content"])
+
+        # Get agent response
+        clean_response, new_state, is_complete = get_user_agent_response(
+            messages=messages,
+            product_context=product_ctx or {},
+            session=session,
+            link=link,
+            conversation_state=current_state,
+        )
+
+        # Persist assistant response WITH state marker to DB for state recovery
+        db_content = f"{clean_response}\n[STATE:{new_state}]"
+        if is_complete:
+            db_content = f"{clean_response}\n[CONVERSATION_COMPLETE]\n[STATE:{new_state}]"
+        ConversationDB.add_message(conv_id, "assistant", db_content)
+
+        # Update state
+        st.session_state[state_key] = new_state
+
+        # Handle completion
+        if is_complete:
+            summary = extract_summary_from_response(clean_response)
+            ConversationDB.complete(conv_id, user_summary=summary)
+            UserSessionLinkDB.update_status(link_id, "completed")
+            st.session_state[complete_key] = True
+
+        return clean_response
+
+    render_chat(
+        session_key=chat_key,
+        agent_callback=user_agent_callback,
+        placeholder="Type your response...",
+        initial_assistant_message=greeting,
+    )

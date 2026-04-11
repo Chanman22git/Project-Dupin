@@ -20,11 +20,102 @@ Be conversational but guide them toward a complete session definition.
 When ready, offer to save the configuration."""
 
 
-def build_user_agent_prompt(product_context: dict, session: dict, link: dict) -> str:
+def build_state_instructions(state, user_message_count, max_questions):
+    """Build state-specific behavioral instructions for the user agent."""
+
+    wrap_up_hint = ""
+    if max_questions:
+        remaining = max_questions - user_message_count
+        if remaining <= 1:
+            wrap_up_hint = "\n\nURGENT: This is the last exchange. Move to WRAP_UP or SUMMARY immediately."
+        elif remaining <= 3:
+            wrap_up_hint = f"\n\nNOTE: Only {remaining} questions remaining. Start transitioning toward wrapping up."
+
+    state_guides = {
+        "GREETING": """
+CURRENT STATE: GREETING (1-2 exchanges)
+You are starting the conversation. Briefly introduce yourself as a research assistant.
+Explain you'd like to learn about their experience. Ask one open-ended question about
+their role and how they use the product.
+After 1-2 exchanges, transition to ROLE_EXPLORATION.""",
+
+        "ROLE_EXPLORATION": """
+CURRENT STATE: ROLE_EXPLORATION (2-4 exchanges)
+Understand the user's title, responsibilities, team, and how they interact with the product.
+Ask about their day-to-day use, how often they use it, and in what contexts.
+Transition to WORKFLOW_DEEP_DIVE when you have a clear picture of their role.""",
+
+        "WORKFLOW_DEEP_DIVE": """
+CURRENT STATE: WORKFLOW_DEEP_DIVE (5-10 exchanges)
+This is the core of the conversation. Explore specific workflows step by step.
+Use "walk me through" questions. Probe for details: tools used, handoffs, frequency,
+edge cases, workarounds. Ask about specific scenarios relevant to the session scope.
+Pain points and expectations may come up naturally here — that's fine, explore them.
+Transition to PAIN_POINTS when workflows are well-understood.""",
+
+        "PAIN_POINTS": """
+CURRENT STATE: PAIN_POINTS (2-4 exchanges)
+If pain points were already well-covered during WORKFLOW_DEEP_DIVE, briefly confirm
+and transition quickly. Otherwise, probe for frustrations, workarounds, time wasted,
+things that break or feel clunky. Ask about severity and frequency.
+Transition to EXPECTATIONS after 2-4 exchanges.""",
+
+        "EXPECTATIONS": """
+CURRENT STATE: EXPECTATIONS (2-4 exchanges)
+Ask what they wish the product could do. What would make their life easier?
+What would an ideal solution look like? Probe for priority — which improvements
+matter most to them?
+Transition to WRAP_UP after 2-4 exchanges.""",
+
+        "WRAP_UP": """
+CURRENT STATE: WRAP_UP (1-2 exchanges)
+Thank the user for their time and insights. Let them know you'll provide a summary.
+Ask if there's anything else they'd like to add before you summarize.
+Transition to SUMMARY after 1-2 exchanges.""",
+
+        "SUMMARY": """
+CURRENT STATE: SUMMARY
+Generate a clear, structured summary of the conversation covering:
+- The user's role and context
+- Key workflows discussed
+- Pain points identified
+- Expectations and wishes
+- Any notable observations
+
+Present this summary and ask the user to confirm it's accurate, or to correct
+anything you may have missed. When the user confirms the summary (says yes, looks good,
+that's correct, confirmed, etc.), include the marker [CONVERSATION_COMPLETE] at the
+very end of your response.""",
+    }
+
+    guide = state_guides.get(state, state_guides["GREETING"])
+
+    return f"""
+{guide}
+{wrap_up_hint}
+
+STATE TRACKING:
+At the very END of every response, on its own line, include a state marker in this format:
+[STATE:<current_state_name>]
+
+For example: [STATE:WORKFLOW_DEEP_DIVE]
+
+Use the state you are transitioning TO (or staying in). If the user brings up a topic
+from a previous state (e.g., mentions a new workflow during PAIN_POINTS), you may
+temporarily set your state back to that earlier state.
+
+IMPORTANT: The state marker must be the very last thing in your response. The user will
+NOT see it — it is stripped before display. Do NOT explain or reference the marker."""
+
+
+def build_user_agent_prompt(product_context, session, link,
+                            conversation_state="GREETING",
+                            user_message_count=0):
     behavior = session.get("agent_behavior", {})
     accumulated = session.get("accumulated_insights", [])
+    max_questions = behavior.get("max_questions")
 
-    return f"""You are a user research agent conducting a discovery conversation.
+    base_prompt = f"""You are a user research agent conducting a discovery conversation.
 
 PRODUCT CONTEXT:
 {product_context.get('description', '')}
@@ -49,7 +140,7 @@ Clarification mode: {behavior.get('clarification_mode', 'balanced')}
 
 Focus areas: {', '.join(behavior.get('focus_areas', []))}
 Avoid areas: {', '.join(behavior.get('avoid_areas', []))}
-Max questions: {behavior.get('max_questions') or 'no limit, but wrap up naturally after 15-20 exchanges'}
+Max questions: {max_questions or 'no limit, but wrap up naturally after 15-20 exchanges'}
 
 ACCUMULATED INSIGHTS (for question refinement, NOT for biasing):
 {json.dumps(accumulated, indent=2) if accumulated else 'None yet.'}
@@ -63,6 +154,12 @@ INSTRUCTIONS:
 6. Keep the conversation natural and bounded.
 7. When wrapping up, summarize what you learned and ask the user to confirm.
 8. Throughout, track: journey steps, pain points, expectations, discrepancies, workflows."""
+
+    state_instructions = build_state_instructions(
+        conversation_state, user_message_count, max_questions
+    )
+
+    return base_prompt + "\n" + state_instructions
 
 
 ANALYSIS_SYSTEM_PROMPT = """You are an expert user research analyst. Given the following conversations from a discovery session, extract and synthesize:
