@@ -3,10 +3,22 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+# Support both .env (local) and st.secrets (Streamlit Cloud)
+def _get_secret(key, default=""):
+    """Get config from env vars first, then Streamlit secrets as fallback."""
+    val = os.getenv(key, "")
+    if val:
+        return val
+    try:
+        import streamlit as st
+        return st.secrets.get(key, default)
+    except Exception:
+        return default
+
+ANTHROPIC_API_KEY = _get_secret("ANTHROPIC_API_KEY")
 _APP_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE_PATH = os.getenv("DATABASE_PATH", os.path.join(_APP_DIR, "discovery_agent.db"))
-BASE_URL = os.getenv("BASE_URL", "http://localhost:8501")
+DATABASE_PATH = _get_secret("DATABASE_PATH", os.path.join(_APP_DIR, "discovery_agent.db"))
+BASE_URL = _get_secret("BASE_URL", "http://localhost:8501")
 
 CLAUDE_MODEL = "claude-sonnet-4-20250514"
 DEFAULT_MAX_TOKENS = 4096
