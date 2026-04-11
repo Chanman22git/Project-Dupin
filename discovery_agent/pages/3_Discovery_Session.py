@@ -199,16 +199,18 @@ with tab_config:
                 raw = get_session_agent_response(messages, session, product_ctx or {})
             except (AgentError, Exception) as e:
                 return f"I'm having a brief connection issue. Please try again. ({type(e).__name__})"
-            should_save, clean = detect_save(raw, SESSION_SAVE_MARKER)
+            _, clean = detect_save(raw, SESSION_SAVE_MARKER)
 
-            if should_save:
-                with st.spinner("Filing investigation plan..."):
+            # Auto-extract after every user message
+            user_msg_count = sum(1 for m in messages if m.get("role") == "user")
+            if user_msg_count >= 1:
+                try:
                     full_messages = messages + [{"role": "assistant", "content": clean}]
                     extracted = extract_session_config(full_messages)
                     update_kwargs = {}
                     for field in ["objective", "scope", "name"]:
                         val = extracted.get(field)
-                        if val and val != "null":
+                        if val and val != "null" and val.strip():
                             update_kwargs[field] = val
                     personas_val = extracted.get("target_personas")
                     if personas_val:
@@ -225,6 +227,11 @@ with tab_config:
                         + [{"role": "assistant", "content": clean}]
                     )
                     DiscoverySessionDB.update(session_id, **update_kwargs)
+                except Exception:
+                    DiscoverySessionDB.update(session_id, context_conversation_history=(
+                        st.session_state[chat_key]
+                        + [{"role": "assistant", "content": clean}]
+                    ))
             return clean
 
         render_chat(

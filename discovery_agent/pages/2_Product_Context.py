@@ -84,37 +84,47 @@ with tab_overview:
             raw_response = get_context_agent_response(messages, ctx)
         except (AgentError, Exception) as e:
             return f"I'm having a brief connection issue. Please try again. ({type(e).__name__})"
-        should_save, clean_response = detect_save(raw_response, SAVE_MARKER)
+        _, clean_response = detect_save(raw_response, SAVE_MARKER)
 
-        if should_save:
-            # Extract and save, with history tracking
-            full_messages = messages + [
-                {"role": "assistant", "content": clean_response}
-            ]
-            extracted = extract_product_context(full_messages)
-            update_kwargs = {}
-            changes = []
-            for field in ["name", "description", "documentation", "current_state"]:
-                val = extracted.get(field)
-                if val and val != "null":
-                    old_val = ctx.get(field, "")
-                    if val != old_val:
-                        update_kwargs[field] = val
-                        field_label = {"description": "Subject", "documentation": "Evidence & Documentation",
-                                       "current_state": "Current State", "name": "Case Name"}.get(field, field)
-                        if old_val:
-                            changes.append(f"Updated {field_label}")
-                        else:
-                            changes.append(f"Added {field_label}")
-            update_kwargs["context_conversation_history"] = (
-                st.session_state[chat_key]
-                + [{"role": "assistant", "content": clean_response}]
-            )
-            if update_kwargs:
-                ProductContextDB.update(ctx_id, **update_kwargs)
-            # Log history for each change
-            for change in changes:
-                ProductContextDB.add_history_entry(ctx_id, change, clean_response[:150], "Dupin Assistant")
+        # Count user messages — auto-extract after every substantive exchange
+        user_msg_count = sum(1 for m in messages if m.get("role") == "user")
+        should_extract = user_msg_count >= 1  # Extract after every user message
+
+        if should_extract:
+            try:
+                full_messages = messages + [
+                    {"role": "assistant", "content": clean_response}
+                ]
+                extracted = extract_product_context(full_messages)
+                update_kwargs = {}
+                changes = []
+                for field in ["name", "description", "documentation", "current_state"]:
+                    val = extracted.get(field)
+                    if val and val != "null" and val.strip():
+                        old_val = ctx.get(field, "") or ""
+                        if val != old_val:
+                            update_kwargs[field] = val
+                            field_label = {"description": "Subject", "documentation": "Evidence & Documentation",
+                                           "current_state": "Current State", "name": "Case Name"}.get(field, field)
+                            if old_val.strip():
+                                changes.append(f"Updated {field_label}")
+                            else:
+                                changes.append(f"Added {field_label}")
+                # Always save conversation history
+                update_kwargs["context_conversation_history"] = (
+                    st.session_state[chat_key]
+                    + [{"role": "assistant", "content": clean_response}]
+                )
+                if update_kwargs:
+                    ProductContextDB.update(ctx_id, **update_kwargs)
+                for change in changes:
+                    ProductContextDB.add_history_entry(ctx_id, change, clean_response[:150], "Dupin Assistant")
+            except Exception:
+                # Extraction failed — still save conversation history
+                ProductContextDB.update(ctx_id, context_conversation_history=(
+                    st.session_state[chat_key]
+                    + [{"role": "assistant", "content": clean_response}]
+                ))
 
         return clean_response
 
