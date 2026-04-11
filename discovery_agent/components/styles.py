@@ -77,41 +77,60 @@ def inject_custom_css():
         color: var(--dupin-text-muted) !important;
     }
 
-    /* ── Typography ── */
+    /* ── Typography — consistent scale ── */
     h1 {
         font-family: var(--dupin-font-display) !important;
-        color: var(--dupin-text) !important;
+        font-size: 2.25rem !important;
         font-weight: 700 !important;
+        color: var(--dupin-text) !important;
         letter-spacing: -0.01em !important;
         line-height: 1.2 !important;
     }
 
     h2 {
         font-family: var(--dupin-font-display) !important;
-        color: var(--dupin-text) !important;
+        font-size: 1.75rem !important;
         font-weight: 700 !important;
+        color: var(--dupin-text) !important;
         letter-spacing: -0.01em !important;
         line-height: 1.2 !important;
     }
 
     h3 {
         font-family: var(--dupin-font-display) !important;
-        color: var(--dupin-text) !important;
-        font-weight: 700 !important;
         font-size: 1.25rem !important;
+        font-weight: 700 !important;
+        color: var(--dupin-text) !important;
         line-height: 1.4 !important;
     }
 
     h4 {
         font-family: var(--dupin-font-display) !important;
+        font-size: 1.125rem !important;
         font-weight: 400 !important;
         font-style: italic !important;
         color: var(--dupin-text-muted) !important;
         line-height: 1.4 !important;
     }
 
-    p, li, span, label, .stMarkdown {
+    p, li, .stMarkdown p {
+        font-family: var(--dupin-font-body) !important;
+        font-size: 1rem !important;
         color: var(--dupin-text) !important;
+        line-height: 1.6 !important;
+    }
+
+    label, .stMarkdown label {
+        font-family: var(--dupin-font-body) !important;
+        font-size: 0.875rem !important;
+        color: var(--dupin-text) !important;
+    }
+
+    /* Sidebar nav items */
+    section[data-testid="stSidebar"] [data-testid="stPageLink"] span {
+        font-family: var(--dupin-font-body) !important;
+        font-size: 0.875rem !important;
+        font-weight: 500 !important;
     }
 
     /* ── Buttons ── */

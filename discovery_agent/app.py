@@ -6,8 +6,14 @@ import os
 _APP_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _APP_DIR)
 
+import base64
 import streamlit as st
 from database.db import init_db
+
+
+def _logo_base64(path):
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
 
 st.set_page_config(
     page_title="Dupin",
@@ -19,13 +25,22 @@ st.set_page_config(
 # Initialize database on first run
 init_db()
 
-# Sidebar logo
+# Sidebar branding
 logo_path = os.path.join(_APP_DIR, "assets", "logo.png")
 if os.path.exists(logo_path):
-    st.sidebar.image(logo_path, width=160)
     st.sidebar.markdown(
-        '<p style="text-align:center; color:#8C8878; font-size:0.75rem; '
-        'letter-spacing:0.12em; text-transform:uppercase; margin-top:-0.5rem;">Case Files</p>',
+        f"""
+        <div style="display:flex; align-items:center; gap:0.75rem; padding:0.25rem 0 0.75rem 0;">
+            <img src="data:image/png;base64,{_logo_base64(logo_path)}" width="48" height="48"
+                 style="border-radius:8px; object-fit:cover;" />
+            <div>
+                <div style="font-family:'Playfair Display',serif; font-size:1.25rem; font-weight:700;
+                     color:#3D3D35; line-height:1.2;">Dupin</div>
+                <div style="font-family:'Inter',sans-serif; font-size:0.625rem; font-weight:500;
+                     color:#8C8878; letter-spacing:0.12em; text-transform:uppercase;">Discovery Agent</div>
+            </div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
     st.sidebar.divider()
