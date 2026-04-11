@@ -13,11 +13,23 @@ SESSION_SAVE_MARKER = "[SAVE_SESSION]"
 
 _SAVE_INSTRUCTION = """
 
-IMPORTANT: When the user indicates they want to save what you've discussed (they say things like
-"save this", "looks good", "that's it", "let's go with that", "save", "done", etc.),
-include the marker {marker} at the very END of your response, after your conversational text.
-Do NOT include this marker unless the user has clearly indicated readiness to save.
-When you include the marker, also provide a brief confirmation of what you're saving."""
+SAVING BEHAVIOR:
+After every response, assess whether you've gathered meaningful new information. If so,
+include the marker {marker} at the very END of your response (the user won't see it).
+
+Include the marker when:
+- The user has shared substantive product details (description, users, features, docs)
+- The user has provided or updated documentation, specs, or current state info
+- The user confirms or corrects something you summarized
+- The user says "save", "done", "looks good", etc.
+
+Do NOT include the marker when:
+- You're still asking clarifying questions and haven't received answers yet
+- The user only said "hi" or gave a very brief non-informative reply
+- You're in the middle of probing for more details
+
+When you include the marker, naturally continue the conversation — ask what else to explore,
+or suggest what to do next. Don't announce that you're saving."""
 
 
 def _trim_history(messages: list[dict], max_messages: int = 40) -> list[dict]:

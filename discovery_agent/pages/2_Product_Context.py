@@ -105,37 +105,49 @@ with tab_overview:
     if not has_brief:
         # ── Chat-only mode: no brief yet ──
         render_tab_guide(
-            "Tell Dupin about your product — what it does, who uses it, any docs you have. "
-            "When you're ready, say 'save this' and Dupin will file the case brief."
+            "Tell Dupin about your product. As you chat, Dupin automatically captures "
+            "and organizes what you share into a structured case brief."
         )
         render_chat(
             session_key=chat_key,
             agent_callback=context_agent_callback,
-            placeholder="Describe your product, paste evidence, or say 'save this'...",
+            placeholder="Tell Dupin about your product...",
             initial_assistant_message=(
-                "Welcome, detective. I'm Dupin, your discovery assistant. "
-                "Let's build the case brief \u2014 tell me about the product "
-                "you're investigating. What is it, who uses it, and what does "
-                "it currently do? You can also paste any documentation or specs.\n\n"
-                "When you're happy with what we've covered, just say **\"save this\"** "
-                "and I'll file the case brief."
+                "Welcome, detective. I'm Dupin, your discovery assistant.\n\n"
+                "Let's build the case brief. I'll ask you some questions and "
+                "organize everything as we go. To start \u2014 **what product or "
+                "initiative are you investigating?**"
             ),
         )
     else:
         # ── Brief exists: show structured view + chat for updates ──
-        render_tab_guide("Your case brief is filed. Chat with Dupin to update it, or review the details below.")
+        render_tab_guide("Dupin has captured your case brief. Continue chatting to refine it \u2014 updates save automatically.")
 
-        # Brief display
-        col_hdr, col_ring = st.columns([3, 1])
-        with col_hdr:
-            render_section_header("document", "Case Brief")
-        with col_ring:
-            pct = int((filled / len(fields)) * 100)
-            render_progress_ring(pct, "Complete")
+        col_brief, col_chat = st.columns([1, 1], gap="large")
 
-        render_info_field("Subject", ctx.get("description"))
-        render_info_field("Evidence & Documentation", ctx.get("documentation"))
-        render_info_field("Current State of Affairs", ctx.get("current_state"))
+        with col_brief:
+            col_hdr, col_ring = st.columns([3, 1])
+            with col_hdr:
+                render_section_header("document", "Case Brief")
+            with col_ring:
+                pct = int((filled / len(fields)) * 100)
+                render_progress_ring(pct, "Complete")
+
+            render_info_field("Subject", ctx.get("description"))
+            render_info_field("Evidence & Documentation", ctx.get("documentation"))
+            render_info_field("Current State of Affairs", ctx.get("current_state"))
+
+        with col_chat:
+            render_section_header("chat", "Update Brief")
+            render_chat(
+                session_key=chat_key,
+                agent_callback=context_agent_callback,
+                placeholder="Tell Dupin what to update...",
+                initial_assistant_message=(
+                    "The case brief is looking good. Want to add more details, "
+                    "update anything, or paste additional documentation?"
+                ),
+            )
 
         st.divider()
 
