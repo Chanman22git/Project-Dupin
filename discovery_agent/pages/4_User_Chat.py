@@ -243,4 +243,5 @@ else:
         agent_callback=user_agent_callback,
         placeholder="Type your response...",
         initial_assistant_message=greeting,
+        enable_file_upload=False,
     )
