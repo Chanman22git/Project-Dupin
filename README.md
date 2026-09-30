@@ -136,7 +136,7 @@ streamlit run app.py
 
 The app opens at http://localhost:8501, and the SQLite database is created on first run.
 
-> `requirements.txt` asks for `streamlit>=1.30.0`, but the app uses `st.navigation` / `st.Page`, which need a newer release. A fresh install pulls the latest Streamlit, which works. If you pin an older version, use 1.36 or newer.
+> Requires Streamlit 1.36 or newer (the app uses `st.navigation` / `st.Page`).
 
 ### Streamlit Cloud
 
@@ -157,7 +157,7 @@ Other behaviour defaults live in `config.py`: model, token limits, link expiry (
 ## Roadmap and known limitations
 
 - **Experimental prototype.** It has not been deployed to production and has no authentication. It is meant for local or trusted use. Anyone who can reach the app can open every PM page; only the Interview page needs a token.
-- **Interview link routing.** Links are built as `BASE_URL?page=chat&token=…`. With `st.navigation`, the Interview page is served at its own path (inferred from `4_User_Chat.py`), so a link may open the Case Board instead. If that happens, send interviewees to the Interview page path with the same `?token=…`. Aligning the generated URL with the page route is a planned fix.
+- **Interview links.** Links are built as `BASE_URL?page=chat&token=…`. Any request carrying a `token` is served only the Interview page, so interviewees land on their interview and can't navigate to the PM pages. The PM pages themselves have no login yet, so run Dupin locally or behind access control.
 - **Links are copied, not sent.** "Send Summons" creates the link. The PM shares it by hand; there is no email or Slack integration.
 - **Single-pass analysis.** All completed transcripts in an investigation go to Claude in one call. Very large investigations may hit context or output limits.
 - **SQLite only.** One file-based database, with no multi-user concurrency handling.
