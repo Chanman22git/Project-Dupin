@@ -52,5 +52,11 @@ investigation = st.Page("pages/3_Discovery_Session.py", title="Investigation", i
 interview = st.Page("pages/4_User_Chat.py", title="Interview", icon=":material/chat:")
 reports = st.Page("pages/5_Reports.py", title="Dossier", icon=":material/assessment:")
 
-pg = st.navigation([home, case_file, investigation, interview, reports])
+# Interview links (BASE_URL?page=chat&token=...) must land on the Interview page,
+# and interviewees must not reach the PM pages — so a token request only gets
+# the Interview page registered, which makes it the page served at any path.
+if st.query_params.get("token"):
+    pg = st.navigation([interview], position="hidden")
+else:
+    pg = st.navigation([home, case_file, investigation, interview, reports])
 pg.run()
